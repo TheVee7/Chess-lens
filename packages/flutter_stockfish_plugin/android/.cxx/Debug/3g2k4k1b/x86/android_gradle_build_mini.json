@@ -1,0 +1,27 @@
+{
+  "buildFiles": [
+    "D:\\chess-app\\packages\\flutter_stockfish_plugin\\src\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Users\\dell\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe",
+      "-C",
+      "D:\\chess-app\\packages\\flutter_stockfish_plugin\\android\\.cxx\\Debug\\3g2k4k1b\\x86",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Users\\dell\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe",
+    "-C",
+    "D:\\chess-app\\packages\\flutter_stockfish_plugin\\android\\.cxx\\Debug\\3g2k4k1b\\x86",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "flutter_stockfish_plugin::@6890427a1f51a3e7e1df": {
+      "artifactName": "flutter_stockfish_plugin",
+      "abi": "x86",
+      "output": "D:\\chess-app\\build\\flutter_stockfish_plugin\\intermediates\\cxx\\Debug\\3g2k4k1b\\obj\\x86\\libflutter_stockfish_plugin.so",
+      "runtimeFiles": []
+    }
+  }
+}

@@ -1,0 +1,1 @@
+C:\Users\dell\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_stockfish_plugin-1.2.0\src\CMakeLists.txt

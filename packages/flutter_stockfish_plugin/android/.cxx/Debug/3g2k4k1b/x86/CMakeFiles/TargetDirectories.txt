@@ -1,0 +1,3 @@
+D:/chess-app/packages/flutter_stockfish_plugin/android/.cxx/Debug/3g2k4k1b/x86/CMakeFiles/flutter_stockfish_plugin.dir
+D:/chess-app/packages/flutter_stockfish_plugin/android/.cxx/Debug/3g2k4k1b/x86/CMakeFiles/edit_cache.dir
+D:/chess-app/packages/flutter_stockfish_plugin/android/.cxx/Debug/3g2k4k1b/x86/CMakeFiles/rebuild_cache.dir

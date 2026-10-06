@@ -1,0 +1,60 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.6.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "flutter_stockfish_plugin",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "flutter_stockfish_plugin::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-flutter_stockfish_plugin-Debug-c75cb0d3281896814743.json",
+					"name" : "flutter_stockfish_plugin",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "C:/Users/dell/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_stockfish_plugin-1.2.0/android/.cxx/Debug/4g62nd4h/armeabi-v7a",
+		"source" : "C:/Users/dell/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_stockfish_plugin-1.2.0/src"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

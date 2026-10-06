@@ -1,0 +1,1 @@
+D:\chess-app\build\flutter_stockfish_plugin\intermediates\cxx\Debug\4g62nd4h\obj\arm64-v8a
