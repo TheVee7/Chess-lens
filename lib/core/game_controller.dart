@@ -49,6 +49,9 @@ class GameController extends ChangeNotifier {
   bool _geminiRunning = false;
   bool get geminiRunning => _geminiRunning;
 
+  String? _geminiError;
+  String? get geminiError => _geminiError;
+
   // ── Load a game ─────────────────────────────────────────────
 
   void loadGame(ChessGame game) {
@@ -124,6 +127,7 @@ class GameController extends ChangeNotifier {
     if (analysis == null) return;
 
     _geminiRunning = true;
+    _geminiError = null;
     notifyListeners();
 
     final gemini = GeminiService(apiKey: apiKey);
@@ -146,12 +150,18 @@ class GameController extends ChangeNotifier {
         _explanationStatus[m.plyIndex] = ExplanationStatus.done;
       } else {
         _explanationStatus[m.plyIndex] = ExplanationStatus.failed;
+        if (gemini.lastError != null) {
+          _geminiError = gemini.lastError;
+        }
       }
       notifyListeners();
     }
 
     // Overall review.
     _gameReview = await gemini.reviewGame(importantMoves);
+    if (_gameReview == null && gemini.lastError != null) {
+      _geminiError = gemini.lastError;
+    }
 
     _geminiRunning = false;
     notifyListeners();
@@ -169,6 +179,9 @@ class GameController extends ChangeNotifier {
       _explanationStatus[move.plyIndex] = ExplanationStatus.done;
     } else {
       _explanationStatus[move.plyIndex] = ExplanationStatus.failed;
+      if (gemini.lastError != null) {
+        _geminiError = gemini.lastError;
+      }
     }
     notifyListeners();
   }

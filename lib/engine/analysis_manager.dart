@@ -86,30 +86,13 @@ class AnalysisManager extends ChangeNotifier {
         final isMateBefore = evalBeforeData.isMate;
         final mateBefore = evalBeforeData.mateIn;
 
-        // Analyze the position AFTER the move.
-        final resultAfter = await _engine.analyze(
-          fen: fenAfter,
-          depth: _depth,
-          multiPv: 1, // Only need best move for the next ply's before-eval
-        );
-
-        if (_cancelled) break;
-        
-        // Save for next iteration (as the before-eval of the next move)
-        // Note: We might want multiPv for the before result, but 
-        // to save time, we can reuse this. However, since the next move needs
-        // multiPV=2 for finding the best move, wait!
-        // The user's specification says: 
-        // "Reuse eval: position-after-move-N = position-before-move-(N+1)"
-        // But if we do that, we only have multiPv=1 for the next move's before-eval.
-        // That means the next move's PV won't have the second-best move.
-        // To fix this and still be optimal, we should search fenAfter with multiPv=_multiPv
+        // Analyze the position AFTER the move with multiPv for classification and reuse.
         final resultAfterFull = await _engine.analyze(
           fen: fenAfter,
           depth: _depth,
           multiPv: _multiPv,
         );
-        
+
         if (_cancelled) break;
 
         final evalAfterData = _scoreToWhitePerspective(resultAfterFull, !isWhite);

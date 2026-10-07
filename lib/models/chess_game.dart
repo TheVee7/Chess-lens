@@ -20,6 +20,7 @@ class ChessGame {
   String get blackElo => headers['BlackElo'] ?? '';
 
   int get totalMoves => (moves.length + 1) ~/ 2; // full moves (pairs)
+  String get pgn => rawPgn;
 }
 
 /// A single half-move (ply) in the game.

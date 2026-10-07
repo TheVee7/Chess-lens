@@ -106,9 +106,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: _keyController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'API Key',
                     hintText: 'AIzaSy...',
+                    errorText: keyMgr.validationError,
                   ),
                   obscureText: true,
                 ),
@@ -117,10 +118,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     if (_isEditingKey && keyMgr.hasKey)
                       TextButton(
-                        onPressed: () {
-                          setState(() => _isEditingKey = false);
-                          _keyController.clear();
-                        },
+                        onPressed: keyMgr.isValidating
+                            ? null
+                            : () {
+                                setState(() => _isEditingKey = false);
+                                _keyController.clear();
+                              },
                         child: const Text(
                           'Cancel',
                           style: TextStyle(color: AppTheme.textTertiary),
@@ -128,15 +131,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     const Spacer(),
                     ElevatedButton(
-                      onPressed: () {
-                        final key = _keyController.text.trim();
-                        if (key.isNotEmpty) {
-                          keyMgr.save(key);
-                          setState(() => _isEditingKey = false);
-                          _keyController.clear();
-                        }
-                      },
-                      child: const Text('Save API Key'),
+                      onPressed: keyMgr.isValidating
+                          ? null
+                          : () async {
+                              final key = _keyController.text.trim();
+                              if (key.isNotEmpty) {
+                                final valid = await keyMgr.save(key);
+                                if (!mounted) return;
+                                if (valid) {
+                                  setState(() => _isEditingKey = false);
+                                  _keyController.clear();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Gemini API Key verified and saved!'),
+                                      backgroundColor: AppTheme.accent,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      child: keyMgr.isValidating
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Save & Verify Key'),
                     ),
                   ],
                 ),
@@ -146,26 +169,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }
 
         // Has key, not editing.
+        final isValid = keyMgr.isValid;
+        final hasError = keyMgr.validationError != null;
+
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppTheme.surfaceLight,
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            border: Border.all(color: AppTheme.surfaceBorder),
+            border: Border.all(
+              color: hasError
+                  ? AppTheme.error.withOpacity(0.5)
+                  : AppTheme.surfaceBorder,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded,
-                      color: AppTheme.accent, size: 20),
+                  Icon(
+                    hasError
+                        ? Icons.error_outline_rounded
+                        : (isValid == true
+                            ? Icons.check_circle_rounded
+                            : Icons.key_rounded),
+                    color: hasError
+                        ? AppTheme.error
+                        : (isValid == true ? AppTheme.accent : AppTheme.warning),
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'API Key Connected',
+                  Text(
+                    hasError
+                        ? 'Key Verification Failed'
+                        : (isValid == true
+                            ? 'API Key Connected & Verified'
+                            : 'API Key Saved'),
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.accent,
+                      color: hasError
+                          ? AppTheme.error
+                          : (isValid == true
+                              ? AppTheme.accent
+                              : AppTheme.textPrimary),
                     ),
                   ),
                   const Spacer(),
@@ -185,10 +232,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   fontFamily: 'monospace',
                 ),
               ),
+              if (hasError) ...[
+                const SizedBox(height: 8),
+                Text(
+                  keyMgr.validationError!,
+                  style: const TextStyle(
+                    color: AppTheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
-              OutlinedButton(
-                onPressed: () => setState(() => _isEditingKey = true),
-                child: const Text('Change API Key'),
+              Row(
+                children: [
+                  OutlinedButton(
+                    onPressed: () => setState(() => _isEditingKey = true),
+                    child: const Text('Change Key'),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton.icon(
+                    onPressed: keyMgr.isValidating
+                        ? null
+                        : () async {
+                            final success = await keyMgr.validateKey();
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  success
+                                      ? 'Connection successful! Gemini is ready.'
+                                      : (keyMgr.validationError ??
+                                          'Failed to connect to Gemini.'),
+                                ),
+                                backgroundColor: success
+                                    ? AppTheme.accent
+                                    : AppTheme.error,
+                              ),
+                            );
+                          },
+                    icon: keyMgr.isValidating
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.primary,
+                            ),
+                          )
+                        : const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Test Connection'),
+                  ),
+                ],
               ),
             ],
           ),

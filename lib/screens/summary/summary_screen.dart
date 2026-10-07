@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/game_controller.dart';
 import '../../models/chess_game.dart';
+import '../../ai/api_key_manager.dart';
 
 class SummaryScreen extends StatelessWidget {
   final ChessGame game;
@@ -22,34 +23,61 @@ class SummaryScreen extends StatelessWidget {
           final isRunning = controller.geminiRunning;
 
           if (review == null) {
+            final error = controller.geminiError;
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (isRunning) ...[
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Gemini is analyzing your game...',
-                      style: GoogleFonts.inter(
-                        color: AppTheme.textSecondary,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (isRunning) ...[
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Gemini is analyzing your game...',
+                        style: GoogleFonts.inter(
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
-                    ),
-                  ] else ...[
-                    Icon(
-                      Icons.error_outline_rounded,
-                      size: 48,
-                      color: AppTheme.warning.withOpacity(0.5),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Game review is not available.',
-                      style: GoogleFonts.inter(
-                        color: AppTheme.textSecondary,
+                    ] else ...[
+                      Icon(
+                        Icons.error_outline_rounded,
+                        size: 48,
+                        color: AppTheme.warning.withOpacity(0.5),
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Game review is not available.',
+                        style: GoogleFonts.inter(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (error != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          error,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            color: AppTheme.error,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          final keyMgr = context.read<ApiKeyManager>();
+                          if (keyMgr.hasKey) {
+                            controller.startGeminiAnalysis(keyMgr.apiKey!);
+                          }
+                        },
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Generate Review'),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             );
           }
@@ -172,7 +200,7 @@ class SummaryScreen extends StatelessWidget {
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ],
             ),

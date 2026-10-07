@@ -8,6 +8,7 @@ class CoachReviewWidget extends StatelessWidget {
   final int plyIndex;
   final ExplanationStatus status;
   final MoveExplanation? explanation;
+  final String? errorMessage;
   final VoidCallback? onRetry;
 
   const CoachReviewWidget({
@@ -15,6 +16,7 @@ class CoachReviewWidget extends StatelessWidget {
     required this.plyIndex,
     required this.status,
     this.explanation,
+    this.errorMessage,
     this.onRetry,
   });
 
@@ -195,9 +197,12 @@ class CoachReviewWidget extends StatelessWidget {
               style: TextStyle(color: AppTheme.textTertiary, fontSize: 13),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Stockfish analysis is still available.',
-              style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
+            Text(
+              errorMessage ?? 'Stockfish analysis is still available.',
+              style: TextStyle(
+                color: errorMessage != null ? AppTheme.error : AppTheme.textTertiary,
+                fontSize: 12,
+              ),
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 8),

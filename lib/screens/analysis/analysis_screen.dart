@@ -11,6 +11,7 @@ import '../../widgets/engine_panel.dart';
 import '../../widgets/coach_review.dart';
 import '../../widgets/analysis_controls.dart';
 import '../summary/summary_screen.dart';
+import '../settings/settings_screen.dart';
 
 import 'package:share_plus/share_plus.dart';
 
@@ -48,8 +49,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final keyMgr = context.watch<ApiKeyManager>();
+
     return Consumer<GameController>(
       builder: (context, controller, _) {
+        if (!_geminiStarted && keyMgr.hasKey && !controller.geminiRunning && controller.analysis != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _maybeStartGemini();
+          });
+        }
+
         final analysis = controller.analysis;
         if (analysis == null) {
           return const Scaffold(
@@ -69,12 +78,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           bestTo = currentMove.bestMoveUci!.substring(2, 4);
         }
 
-        // Last move squares.
-        String? lastFrom, lastTo;
-        if (currentMove != null && currentMove.bestMoveUci != null) {
-          // For the "played" move, we'd need UCI – approximate from FEN diff.
-          // For now show bestMove arrow, not played move highlight.
-        }
 
         return Scaffold(
           appBar: AppBar(
@@ -84,7 +87,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 icon: const Icon(Icons.share_rounded),
                 tooltip: 'Share PGN',
                 onPressed: () {
-                  Share.share(widget.game.pgn, subject: 'ChessLens Game PGN');
+                  Share.share(widget.game.rawPgn, subject: 'ChessLens Game PGN');
                 },
               ),
               if (controller.gameReview != null)
@@ -177,8 +180,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               ExplanationStatus.waiting,
                           explanation:
                               controller.explanations[currentMove.plyIndex],
+                          errorMessage: controller.geminiError,
                           onRetry: () {
-                            final keyMgr = context.read<ApiKeyManager>();
                             if (keyMgr.hasKey) {
                               controller.retryExplanation(
                                   keyMgr.apiKey!, currentMove);
@@ -207,7 +210,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Text(
+                              const Text(
                                 'Gemini analyzing important moves...',
                                 style: TextStyle(
                                   color: AppTheme.primaryLight,
@@ -219,33 +222,49 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         ),
                       ],
 
-                      // No API key warning.
-                      if (!context.watch<ApiKeyManager>().hasKey &&
+                      // No API key warning (interactive).
+                      if (!keyMgr.hasKey &&
                           currentMove != null &&
                           currentMove.isImportant) ...[
                         const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppTheme.warning.withOpacity(0.08),
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusSm),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.key_rounded,
-                                  color: AppTheme.warning, size: 16),
-                              const SizedBox(width: 8),
-                              const Expanded(
-                                child: Text(
-                                  'Add your Gemini API key in Settings to enable Coach Reviews.',
-                                  style: TextStyle(
-                                    color: AppTheme.warning,
-                                    fontSize: 12,
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const SettingsScreen()),
+                            );
+                          },
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusSm),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.warning.withOpacity(0.08),
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusSm),
+                              border: Border.all(
+                                  color: AppTheme.warning.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.key_rounded,
+                                    color: AppTheme.warning, size: 18),
+                                const SizedBox(width: 10),
+                                const Expanded(
+                                  child: Text(
+                                    'Add Gemini API Key in Settings to enable Coach Reviews.',
+                                    style: TextStyle(
+                                      color: AppTheme.warning,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                                const Icon(Icons.arrow_forward_ios_rounded,
+                                    color: AppTheme.warning, size: 12),
+                              ],
+                            ),
                           ),
                         ),
                       ],

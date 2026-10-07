@@ -16,12 +16,19 @@ class MoveExplanation {
 
   factory MoveExplanation.fromJson(Map<String, dynamic> json) {
     return MoveExplanation(
-      moveNumber: json['move_number'] as int? ?? 0,
-      title: json['title'] as String? ?? '',
-      explanation: json['explanation'] as String? ?? '',
-      betterMove: json['better_move'] as String? ?? '',
-      lesson: json['lesson'] as String? ?? '',
+      moveNumber: _parseInt(json['move_number'] ?? json['moveNumber']) ?? 0,
+      title: (json['title'] ?? json['classification'] ?? '').toString(),
+      explanation: (json['explanation'] ?? json['reason'] ?? '').toString(),
+      betterMove: (json['better_move'] ?? json['betterMove'] ?? '').toString(),
+      lesson: (json['lesson'] ?? json['takeaway'] ?? '').toString(),
     );
+  }
+
+  static int? _parseInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   Map<String, dynamic> toJson() => {
@@ -44,12 +51,20 @@ class GameReview {
   });
 
   factory GameReview.fromJson(Map<String, dynamic> json) {
+    final rawLessons =
+        json['key_lessons'] ?? json['keyLessons'] ?? json['lessons'];
+    final lessons = <String>[];
+    if (rawLessons is List) {
+      for (final item in rawLessons) {
+        lessons.add(item.toString());
+      }
+    } else if (rawLessons is String) {
+      lessons.add(rawLessons);
+    }
+
     return GameReview(
-      summary: json['summary'] as String? ?? '',
-      keyLessons: (json['key_lessons'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
+      summary: (json['summary'] ?? json['overview'] ?? '').toString(),
+      keyLessons: lessons,
     );
   }
 }

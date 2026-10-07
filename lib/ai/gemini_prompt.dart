@@ -49,10 +49,12 @@ Respond with ONLY this JSON (no markdown, no code fences):
 
   /// Prompt for the overall game review.
   static String gameReview(List<MoveAnalysis> importantMoves) {
-    final moveSummaries = importantMoves.map((m) {
-      return '  Move ${m.moveNumber}${m.isWhite ? '' : '...'}${m.san} '
-          '(${m.classification.name}, loss: ${(m.evalLoss / 100).toStringAsFixed(1)})';
-    }).join('\n');
+    final moveSummaries = importantMoves.isEmpty
+        ? 'No major blunders or mistakes detected in this game. Solid overall play.'
+        : importantMoves.map((m) {
+            return '  Move ${m.moveNumber}${m.isWhite ? '' : '...'}${m.san} '
+                '(${m.classification.name}, loss: ${(m.evalLoss / 100).toStringAsFixed(1)})';
+          }).join('\n');
 
     return '''
 Generate an overall game review based on these critical moments:
