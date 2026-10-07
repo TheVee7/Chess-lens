@@ -6,55 +6,55 @@ class AppTheme {
   AppTheme._();
 
   // ── Core palette ──────────────────────────────────────────────
-  static const Color background      = Color(0xFF0F1117);
-  static const Color surface         = Color(0xFF1A1D27);
-  static const Color surfaceLight    = Color(0xFF242837);
+  static const Color background      = Color(0xFF101214);
+  static const Color surface         = Color(0xFF181A1D);
+  static const Color surfaceLight    = Color(0xFF22252A);
   static const Color surfaceBorder   = Color(0xFF2E3347);
-  static const Color primary         = Color(0xFF6C63FF);
-  static const Color primaryLight    = Color(0xFF8B83FF);
-  static const Color accent          = Color(0xFF00D9A6);
-  static const Color accentDark      = Color(0xFF00B389);
-  static const Color textPrimary     = Color(0xFFF0F0F5);
-  static const Color textSecondary   = Color(0xFF9DA3B7);
-  static const Color textTertiary    = Color(0xFF6B7185);
-  static const Color error           = Color(0xFFFF6B6B);
-  static const Color warning         = Color(0xFFFFBB5C);
-  static const Color success         = Color(0xFF51CF66);
+  static const Color primary         = Color(0xFF81B64C);
+  static const Color primaryLight    = Color(0xFF9CCC65);
+  static const Color accent          = Color(0xFF81B64C);
+  static const Color accentDark      = Color(0xFF5D8E35);
+  static const Color textPrimary     = Color(0xFFFFFFFF);
+  static const Color textSecondary   = Color(0xFFA6A9AF);
+  static const Color textTertiary    = Color(0xFF737780);
+  static const Color error           = Color(0xFFD9534F);
+  static const Color warning         = Color(0xFFF0C15C);
+  static const Color success         = Color(0xFF81B64C);
 
   // ── Move classification colours ───────────────────────────────
-  static const Color bestMove        = Color(0xFF00D9A6);
-  static const Color excellent       = Color(0xFF51CF66);
-  static const Color good            = Color(0xFF8BC34A);
-  static const Color book            = Color(0xFFA0AEC0);
-  static const Color inaccuracy      = Color(0xFFFFBB5C);
-  static const Color mistake         = Color(0xFFFF8C42);
-  static const Color blunder         = Color(0xFFFF6B6B);
+  static const Color bestMove        = Color(0xFF81B64C);
+  static const Color excellent       = Color(0xFF81B64C);
+  static const Color good            = Color(0xFF5D8E35);
+  static const Color book            = Color(0xFFA6A9AF);
+  static const Color inaccuracy      = Color(0xFFF0C15C);
+  static const Color mistake         = Color(0xFFE89B3D);
+  static const Color blunder         = Color(0xFFD9534F);
 
   // ── Eval bar ──────────────────────────────────────────────────
-  static const Color whiteEval = Color(0xFFF0F0F5);
-  static const Color blackEval = Color(0xFF1A1D27);
+  static const Color whiteEval = Color(0xFFFFFFFF);
+  static const Color blackEval = Color(0xFF181A1D);
 
   // ── Board ─────────────────────────────────────────────────────
-  static const Color boardLight  = Color(0xFFE8DECC);
-  static const Color boardDark   = Color(0xFF9B7653);
+  static const Color boardLight  = Color(0xFFEBECD0);
+  static const Color boardDark   = Color(0xFF739552);
   static const Color boardHighlight = Color(0x4DFFEB3B);
-  static const Color bestMoveArrow  = Color(0x9900D9A6);
+  static const Color bestMoveArrow  = Color(0x9981B64C);
 
   // ── Gradients ─────────────────────────────────────────────────
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF6C63FF), Color(0xFF4E54C8)],
+    colors: [Color(0xFF9CCC65), Color(0xFF81B64C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient accentGradient = LinearGradient(
-    colors: [Color(0xFF00D9A6), Color(0xFF00B389)],
+    colors: [Color(0xFF81B64C), Color(0xFF5D8E35)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient surfaceGradient = LinearGradient(
-    colors: [Color(0xFF1A1D27), Color(0xFF0F1117)],
+    colors: [Color(0xFF181A1D), Color(0xFF101214)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );

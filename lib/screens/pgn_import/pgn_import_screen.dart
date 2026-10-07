@@ -6,20 +6,25 @@ import '../../models/chess_game.dart';
 import '../quick_report/loading_screen.dart';
 
 class PgnImportScreen extends StatefulWidget {
-  const PgnImportScreen({super.key});
+  final String? initialPgn;
+
+  const PgnImportScreen({super.key, this.initialPgn});
 
   @override
   State<PgnImportScreen> createState() => _PgnImportScreenState();
 }
 
 class _PgnImportScreenState extends State<PgnImportScreen> {
-  final _controller = TextEditingController();
+  late final TextEditingController _controller;
   String? _error;
   bool _hasContent = false;
 
   @override
   void initState() {
     super.initState();
+    _controller = TextEditingController(text: widget.initialPgn);
+    _hasContent = _controller.text.trim().isNotEmpty;
+    
     _controller.addListener(() {
       setState(() {
         _hasContent = _controller.text.trim().isNotEmpty;

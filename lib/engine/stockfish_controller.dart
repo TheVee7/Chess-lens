@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter_stockfish_plugin/stockfish.dart';
+import 'package:stockfish/stockfish.dart';
 import 'uci_parser.dart';
 
 /// Controller for the Stockfish engine via the `stockfish` Flutter plugin.
@@ -13,33 +13,65 @@ class StockfishController {
   Stockfish? _stockfish;
   StreamSubscription<String>? _subscription;
   bool _ready = false;
+  
+  Completer<void>? _readyCompleter;
+  Completer<AnalysisResult>? _analysisCompleter;
+  
+  bool _cancelled = false;
+  
+  final Map<int, UciInfo> _currentInfoLines = {};
+  String? _currentBestMove;
 
   bool get isReady => _ready;
 
   /// Initialize the Stockfish process.
   Future<void> init() async {
     _stockfish = Stockfish();
-    final completer = Completer<void>();
-
-    _subscription = _stockfish!.stdout.listen((line) {
-      if (line.contains('uciok') || line.contains('Stockfish')) {
-        if (!completer.isCompleted) completer.complete();
+    
+    // Wait for the engine state to be ready
+    while (_stockfish!.state.value != StockfishState.ready) {
+      if (_stockfish!.state.value == StockfishState.error ||
+          _stockfish!.state.value == StockfishState.disposed) {
+        throw StateError('Failed to start Stockfish');
       }
-    });
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+    
+    _subscription = _stockfish!.stdout.listen(_handleStdout);
 
+    _readyCompleter = Completer<void>();
     _stockfish!.stdin = 'uci';
-
-    // Wait for `uciok`, with a timeout.
-    await completer.future.timeout(
-      const Duration(seconds: 10),
-      onTimeout: () {
-        // If we don't get uciok, still try to continue.
-      },
-    );
-
     _stockfish!.stdin = 'isready';
-    await _waitForReadyOk();
+    await _readyCompleter!.future.timeout(const Duration(seconds: 10), onTimeout: () {});
+    
     _ready = true;
+  }
+
+  void _handleStdout(String line) {
+    if (line.contains('readyok')) {
+      if (_readyCompleter != null && !_readyCompleter!.isCompleted) {
+        _readyCompleter!.complete();
+      }
+    } else if (line.startsWith('info ')) {
+      final info = UciParser.parseInfoLine(line);
+      if (info != null && info.depth > 0) {
+        final existing = _currentInfoLines[info.multiPv];
+        if (existing == null || info.depth >= existing.depth) {
+          _currentInfoLines[info.multiPv] = info;
+        }
+      }
+    } else if (line.startsWith('bestmove ')) {
+      final bm = UciParser.parseBestMove(line);
+      if (bm != null) {
+        _currentBestMove = bm;
+        if (_analysisCompleter != null && !_analysisCompleter!.isCompleted) {
+          _analysisCompleter!.complete(AnalysisResult(
+            bestMove: _currentBestMove!,
+            lines: _currentInfoLines.values.toList(),
+          ));
+        }
+      }
+    }
   }
 
   /// Analyze a position. Returns the best info lines for each MultiPV.
@@ -50,69 +82,45 @@ class StockfishController {
   }) async {
     if (_stockfish == null) throw StateError('Stockfish not initialized');
 
+    _cancelled = false;
+    _currentInfoLines.clear();
+    _currentBestMove = null;
+
     _stockfish!.stdin = 'stop';
-    await Future.delayed(const Duration(milliseconds: 50));
-    _stockfish!.stdin = 'ucinewgame';
+    
+    _readyCompleter = Completer<void>();
     _stockfish!.stdin = 'isready';
-    await _waitForReadyOk();
+    await _readyCompleter!.future.timeout(const Duration(seconds: 5), onTimeout: () {});
+    
+    if (_cancelled) {
+       return const AnalysisResult(bestMove: '', lines: []);
+    }
 
     _stockfish!.stdin = 'setoption name MultiPV value $multiPv';
     _stockfish!.stdin = 'position fen $fen';
-
-    final completer = Completer<AnalysisResult>();
-    final infoLines = <int, UciInfo>{}; // multiPv → best info
-    String? bestMove;
-
-    // Cancel any previous listener.
-    await _subscription?.cancel();
-    _subscription = _stockfish!.stdout.listen((line) {
-      final info = UciParser.parseInfoLine(line);
-      if (info != null && info.depth > 0) {
-        final existing = infoLines[info.multiPv];
-        if (existing == null || info.depth > existing.depth) {
-          infoLines[info.multiPv] = info;
-        }
-      }
-
-      final bm = UciParser.parseBestMove(line);
-      if (bm != null) {
-        bestMove = bm;
-        if (!completer.isCompleted) {
-          completer.complete(AnalysisResult(
-            bestMove: bestMove!,
-            lines: infoLines.values.toList(),
-          ));
-        }
-      }
-    });
-
+    
+    _analysisCompleter = Completer<AnalysisResult>();
     _stockfish!.stdin = 'go depth $depth';
 
-    return completer.future.timeout(
-      const Duration(seconds: 30),
-      onTimeout: () {
-        _stockfish!.stdin = 'stop';
-        return AnalysisResult(
-          bestMove: bestMove ?? '',
-          lines: infoLines.values.toList(),
-        );
-      },
-    );
+    try {
+      return await _analysisCompleter!.future;
+    } catch (e) {
+      return AnalysisResult(
+        bestMove: _currentBestMove ?? '',
+        lines: _currentInfoLines.values.toList(),
+      );
+    }
   }
 
-  /// Wait for `readyok`.
-  Future<void> _waitForReadyOk() async {
-    final c = Completer<void>();
-    late StreamSubscription<String> sub;
-    sub = _stockfish!.stdout.listen((line) {
-      if (line.contains('readyok')) {
-        sub.cancel();
-        if (!c.isCompleted) c.complete();
-      }
-    });
-    await c.future.timeout(const Duration(seconds: 5), onTimeout: () {
-      sub.cancel();
-    });
+  void stop() {
+    _cancelled = true;
+    _stockfish?.stdin = 'stop';
+    if (_analysisCompleter != null && !_analysisCompleter!.isCompleted) {
+      _analysisCompleter!.complete(AnalysisResult(
+        bestMove: _currentBestMove ?? '',
+        lines: _currentInfoLines.values.toList(),
+      ));
+    }
   }
 
   /// Dispose of the engine.

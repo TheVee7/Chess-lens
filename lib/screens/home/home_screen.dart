@@ -1,13 +1,80 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import '../../core/theme/app_theme.dart';
 import '../../ai/api_key_manager.dart';
 import '../pgn_import/pgn_import_screen.dart';
 import '../settings/settings_screen.dart';
-import 'package:provider/provider.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late StreamSubscription _intentDataStreamSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // For sharing or opening when app is in memory
+    _intentDataStreamSubscription = ReceiveSharingIntent.instance.getMediaStream().listen((List<SharedMediaFile> value) {
+      _handleSharedFiles(value);
+    }, onError: (err) {
+      debugPrint("getIntentDataStream error: $err");
+    });
+
+    // For sharing or opening when app is closed
+    ReceiveSharingIntent.instance.getInitialMedia().then((List<SharedMediaFile> value) {
+      _handleSharedFiles(value);
+      ReceiveSharingIntent.instance.reset();
+    });
+  }
+
+  Future<void> _handleSharedFiles(List<SharedMediaFile> files) async {
+    if (files.isEmpty) return;
+    
+    final file = files.first;
+    String pgnContent = '';
+    
+    if (file.type == SharedMediaType.text) {
+      pgnContent = file.path;
+    } else if (file.type == SharedMediaType.file && file.path.toLowerCase().endsWith('.pgn')) {
+      try {
+        pgnContent = await File(file.path).readAsString();
+      } catch (e) {
+        debugPrint("Error reading PGN file: $e");
+      }
+    } else {
+      // It's an image or other unhandled type for now.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Received unhandled file type: ${file.type.name}')),
+      );
+      return;
+    }
+
+    if (pgnContent.isNotEmpty) {
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PgnImportScreen(initialPgn: pgnContent),
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _intentDataStreamSubscription.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

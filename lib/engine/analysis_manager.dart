@@ -16,6 +16,8 @@ class AnalysisManager extends ChangeNotifier {
   bool _analyzing = false;
   bool get isAnalyzing => _analyzing;
 
+  bool _cancelled = false;
+
   int _currentPly = 0;
   int get currentPly => _currentPly;
 
@@ -40,6 +42,7 @@ class AnalysisManager extends ChangeNotifier {
   /// Analyze the full game. Notifies listeners with progress.
   Future<GameAnalysis?> analyzeGame(ChessGame game) async {
     _analyzing = true;
+    _cancelled = false;
     _error = null;
     _result = null;
     _totalPlies = game.moves.length;
@@ -50,62 +53,71 @@ class AnalysisManager extends ChangeNotifier {
       await _engine.init();
 
       final analyses = <MoveAnalysis>[];
+      AnalysisResult? previousResult;
 
-      // We need the FEN *before* each move. Start from the initial position.
       String previousFen =
           'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
       for (int i = 0; i < game.moves.length; i++) {
+        if (_cancelled) break;
+        
         final move = game.moves[i];
         final fenBefore = previousFen;
         final fenAfter = move.fen!;
+        final isWhite = move.isWhite;
 
-        // Analyze the position BEFORE the move.
-        final result = await _engine.analyze(
-          fen: fenBefore,
+        // Analyze the position BEFORE the move, or reuse previous.
+        AnalysisResult resultBefore;
+        if (previousResult != null) {
+          resultBefore = previousResult;
+        } else {
+          resultBefore = await _engine.analyze(
+            fen: fenBefore,
+            depth: _depth,
+            multiPv: _multiPv,
+          );
+        }
+
+        if (_cancelled) break;
+
+        // Eval before (normalised to White's perspective)
+        final evalBeforeData = _scoreToWhitePerspective(resultBefore, isWhite);
+        final evalBefore = evalBeforeData.score;
+        final isMateBefore = evalBeforeData.isMate;
+        final mateBefore = evalBeforeData.mateIn;
+
+        // Analyze the position AFTER the move.
+        final resultAfter = await _engine.analyze(
+          fen: fenAfter,
+          depth: _depth,
+          multiPv: 1, // Only need best move for the next ply's before-eval
+        );
+
+        if (_cancelled) break;
+        
+        // Save for next iteration (as the before-eval of the next move)
+        // Note: We might want multiPv for the before result, but 
+        // to save time, we can reuse this. However, since the next move needs
+        // multiPV=2 for finding the best move, wait!
+        // The user's specification says: 
+        // "Reuse eval: position-after-move-N = position-before-move-(N+1)"
+        // But if we do that, we only have multiPv=1 for the next move's before-eval.
+        // That means the next move's PV won't have the second-best move.
+        // To fix this and still be optimal, we should search fenAfter with multiPv=_multiPv
+        final resultAfterFull = await _engine.analyze(
+          fen: fenAfter,
           depth: _depth,
           multiPv: _multiPv,
         );
+        
+        if (_cancelled) break;
 
-        final isWhite = move.isWhite;
+        final evalAfterData = _scoreToWhitePerspective(resultAfterFull, !isWhite);
+        final evalAfter = evalAfterData.score;
+        final isMateAfter = evalAfterData.isMate;
+        final mateAfter = evalAfterData.mateIn;
 
-        // --- Eval before (normalised to White's perspective) ---
-        double evalBefore;
-        bool isMateBefore = false;
-        int? mateBefore;
-        if (result.scoreMate != null) {
-          isMateBefore = true;
-          mateBefore = isWhite ? result.scoreMate! : -result.scoreMate!;
-          evalBefore = result.scoreMate! > 0 ? 10000.0 : -10000.0;
-          if (!isWhite) evalBefore = -evalBefore;
-        } else {
-          evalBefore = (result.scoreCp ?? 0).toDouble();
-          if (!isWhite) evalBefore = -evalBefore;
-        }
-
-        // --- Eval after (analyse the resulting position) ---
-        final afterResult = await _engine.analyze(
-          fen: fenAfter,
-          depth: _depth,
-          multiPv: 1,
-        );
-
-        double evalAfter;
-        bool isMateAfter = false;
-        int? mateAfter;
-        final afterIsWhite = !isWhite;
-        if (afterResult.scoreMate != null) {
-          isMateAfter = true;
-          mateAfter =
-              afterIsWhite ? afterResult.scoreMate! : -afterResult.scoreMate!;
-          evalAfter = afterResult.scoreMate! > 0 ? 10000.0 : -10000.0;
-          if (!afterIsWhite) evalAfter = -evalAfter;
-        } else {
-          evalAfter = (afterResult.scoreCp ?? 0).toDouble();
-          if (!afterIsWhite) evalAfter = -evalAfter;
-        }
-
-        // --- Eval loss (from the mover's perspective, ≥ 0) ---
+        // Eval loss (from the mover's perspective, ≥ 0)
         double evalLoss;
         if (isWhite) {
           evalLoss = evalBefore - evalAfter;
@@ -114,22 +126,22 @@ class AnalysisManager extends ChangeNotifier {
         }
         if (evalLoss < 0) evalLoss = 0;
 
-        // --- Best move SAN ---
+        // Best move SAN
         _positionManager.load(fenBefore);
-        final bestSan = _positionManager.uciToSan(result.bestMove);
+        final bestSan = _positionManager.uciToSan(resultBefore.bestMove);
 
-        // --- Classification ---
+        // Classification
         final classification = _classifyMove(
           evalLoss,
-          result.bestMove,
+          resultBefore.bestMove,
           move.san,
           fenBefore,
         );
 
-        // --- PV in SAN ---
+        // PV in SAN
         _positionManager.load(fenBefore);
         final pvSan = <String>[];
-        for (final uci in result.pv.take(5)) {
+        for (final uci in resultBefore.pv.take(5)) {
           final san = _positionManager.uciToSan(uci);
           if (san != null) {
             pvSan.add(san);
@@ -153,39 +165,63 @@ class AnalysisManager extends ChangeNotifier {
           mateBefore: mateBefore,
           mateAfter: mateAfter,
           bestMoveSan: bestSan,
-          bestMoveUci: result.bestMove,
+          bestMoveUci: resultBefore.bestMove,
           pv: pvSan,
           evalLoss: evalLoss,
           classification: classification,
         ));
 
         previousFen = fenAfter;
+        previousResult = resultAfterFull; // Reuse!
         _currentPly = i + 1;
         notifyListeners();
       }
 
-      // ── Aggregates ──────────────────────────────────────────
-      final whiteMoves = analyses.where((m) => m.isWhite).toList();
-      final blackMoves = analyses.where((m) => !m.isWhite).toList();
+      if (!_cancelled) {
+        // ── Aggregates ──────────────────────────────────────────
+        final whiteMoves = analyses.where((m) => m.isWhite).toList();
+        final blackMoves = analyses.where((m) => !m.isWhite).toList();
 
-      _result = GameAnalysis(
-        moves: analyses,
-        whiteAccuracy: _calcAccuracy(whiteMoves),
-        blackAccuracy: _calcAccuracy(blackMoves),
-        whiteClassifications: _countClassifications(whiteMoves),
-        blackClassifications: _countClassifications(blackMoves),
-      );
+        _result = GameAnalysis(
+          moves: analyses,
+          whiteAccuracy: _calcAccuracy(whiteMoves),
+          blackAccuracy: _calcAccuracy(blackMoves),
+          whiteClassifications: _countClassifications(whiteMoves),
+          blackClassifications: _countClassifications(blackMoves),
+        );
+      }
 
       _analyzing = false;
       notifyListeners();
       return _result;
     } catch (e) {
-      _error = e.toString();
+      if (!_cancelled) {
+        _error = e.toString();
+      }
       _analyzing = false;
       notifyListeners();
       return null;
     } finally {
       _engine.dispose();
+    }
+  }
+
+  _EvalData _scoreToWhitePerspective(AnalysisResult result, bool isWhiteToMove) {
+    if (result.scoreMate != null) {
+      final mateIn = isWhiteToMove ? result.scoreMate! : -result.scoreMate!;
+      final score = result.scoreMate! > 0 ? 10000.0 : -10000.0;
+      return _EvalData(
+        score: isWhiteToMove ? score : -score,
+        isMate: true,
+        mateIn: mateIn,
+      );
+    } else {
+      final score = (result.scoreCp ?? 0).toDouble();
+      return _EvalData(
+        score: isWhiteToMove ? score : -score,
+        isMate: false,
+        mateIn: null,
+      );
     }
   }
 
@@ -247,8 +283,16 @@ class AnalysisManager extends ChangeNotifier {
   }
 
   void cancel() {
-    _engine.dispose();
+    _cancelled = true;
+    _engine.stop();
     _analyzing = false;
     notifyListeners();
   }
+}
+
+class _EvalData {
+  final double score;
+  final bool isMate;
+  final int? mateIn;
+  _EvalData({required this.score, required this.isMate, this.mateIn});
 }

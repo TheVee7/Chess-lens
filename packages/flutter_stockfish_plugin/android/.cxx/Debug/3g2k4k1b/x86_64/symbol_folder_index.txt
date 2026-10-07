@@ -1,1 +1,0 @@
-D:\chess-app\build\flutter_stockfish_plugin\intermediates\cxx\Debug\3g2k4k1b\obj\x86_64

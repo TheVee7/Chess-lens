@@ -10,18 +10,27 @@ dependencies:
   chess: ^0.8.1
   flutter:
     sdk: flutter
-  flutter_stockfish_plugin:
-    path: ./packages/flutter_stockfish_plugin
+  stockfish: ^1.8.1
+    
   google_fonts: 8.2.1
   http: ^1.6.0
   provider: ^6.1.5+1
   shared_preferences: ^2.5.6
   url_launcher: ^6.3.3
+  share_plus: ^13.3.1
+  receive_sharing_intent: ^1.9.0
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  image_path: "assets/icon.jpg"
+  min_sdk_android: 21

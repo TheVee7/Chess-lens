@@ -27,7 +27,7 @@ class UciParser {
   static UciInfo? parseInfoLine(String line) {
     if (!line.startsWith('info ')) return null;
 
-    final tokens = line.split(' ');
+    final tokens = line.trim().split(RegExp(r'\s+'));
 
     int depth = 0;
     int? scoreCp;
@@ -85,7 +85,7 @@ class UciParser {
   /// Parse a `bestmove` line. Returns the best move UCI string, or null.
   static String? parseBestMove(String line) {
     if (!line.startsWith('bestmove ')) return null;
-    final parts = line.split(' ');
+    final parts = line.trim().split(RegExp(r'\s+'));
     return parts.length >= 2 ? parts[1] : null;
   }
 }

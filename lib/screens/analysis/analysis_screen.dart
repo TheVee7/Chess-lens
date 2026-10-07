@@ -12,6 +12,8 @@ import '../../widgets/coach_review.dart';
 import '../../widgets/analysis_controls.dart';
 import '../summary/summary_screen.dart';
 
+import 'package:share_plus/share_plus.dart';
+
 class AnalysisScreen extends StatefulWidget {
   final ChessGame game;
 
@@ -78,6 +80,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           appBar: AppBar(
             title: const Text('Game Review'),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.share_rounded),
+                tooltip: 'Share PGN',
+                onPressed: () {
+                  Share.share(widget.game.pgn, subject: 'ChessLens Game PGN');
+                },
+              ),
               if (controller.gameReview != null)
                 IconButton(
                   icon: const Icon(Icons.summarize_rounded),

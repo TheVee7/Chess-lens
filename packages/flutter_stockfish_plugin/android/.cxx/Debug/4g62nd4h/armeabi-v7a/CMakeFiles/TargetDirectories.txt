@@ -1,3 +1,0 @@
-C:/Users/dell/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_stockfish_plugin-1.2.0/android/.cxx/Debug/4g62nd4h/armeabi-v7a/CMakeFiles/flutter_stockfish_plugin.dir
-C:/Users/dell/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_stockfish_plugin-1.2.0/android/.cxx/Debug/4g62nd4h/armeabi-v7a/CMakeFiles/edit_cache.dir
-C:/Users/dell/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_stockfish_plugin-1.2.0/android/.cxx/Debug/4g62nd4h/armeabi-v7a/CMakeFiles/rebuild_cache.dir
