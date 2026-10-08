@@ -9,13 +9,38 @@ import '../../widgets/evaluation_graph.dart';
 import '../../widgets/move_list.dart';
 import '../analysis/analysis_screen.dart';
 
-class QuickReportScreen extends StatelessWidget {
+class QuickReportScreen extends StatefulWidget {
   final ChessGame game;
+  final GameController? controller;
 
-  const QuickReportScreen({super.key, required this.game});
+  const QuickReportScreen({
+    super.key,
+    required this.game,
+    this.controller,
+  });
+
+  @override
+  State<QuickReportScreen> createState() => _QuickReportScreenState();
+}
+
+class _QuickReportScreenState extends State<QuickReportScreen> {
+  GameController? _ownedController;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ownedController ??= widget.controller ?? context.read<GameController>();
+  }
+
+  @override
+  void dispose() {
+    _ownedController?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final game = widget.game;
     return Consumer<GameController>(
       builder: (context, controller, _) {
         final analysis = controller.analysis;
@@ -179,7 +204,7 @@ class QuickReportScreen extends StatelessWidget {
                           BorderRadius.circular(AppTheme.radiusMd),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primary.withOpacity(0.3),
+                          color: AppTheme.primary.withValues(alpha: 0.3),
                           blurRadius: 16,
                           offset: const Offset(0, 4),
                         ),

@@ -22,6 +22,7 @@ class _LoadingScreenState extends State<LoadingScreen>
   late final GameController _controller;
   late final AnimationController _pulseController;
   bool _started = false;
+  bool _transferredToReport = false;
 
   @override
   void initState() {
@@ -57,14 +58,23 @@ class _LoadingScreenState extends State<LoadingScreen>
     if (!mounted) return;
     setState(() {});
 
-    if (_controller.analysisManager.result != null) {
+    final am = _controller.analysisManager;
+    if (am.error != null) {
+      if (_pulseController.isAnimating) {
+        _pulseController.stop();
+      }
+    } else if (am.result != null && !_transferredToReport) {
+      _transferredToReport = true;
       _controller.removeListener(_onUpdate);
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => ChangeNotifierProvider<GameController>.value(
             value: _controller,
-            child: QuickReportScreen(game: widget.game),
+            child: QuickReportScreen(
+              game: widget.game,
+              controller: _controller,
+            ),
           ),
         ),
       );
@@ -74,6 +84,10 @@ class _LoadingScreenState extends State<LoadingScreen>
   @override
   void dispose() {
     _controller.removeListener(_onUpdate);
+    if (!_transferredToReport) {
+      _controller.cancelAnalysis();
+      _controller.dispose();
+    }
     _pulseController.dispose();
     super.dispose();
   }
@@ -84,129 +98,170 @@ class _LoadingScreenState extends State<LoadingScreen>
     final progress = am.progress;
     final currentPly = am.currentPly;
     final totalPlies = am.totalPlies;
+    final hasError = am.error != null;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // ── Animated icon ─────────────────────────────
-                AnimatedBuilder(
-                  animation: _pulseController,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: 1.0 + _pulseController.value * 0.08,
-                      child: Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          gradient: AppTheme.primaryGradient,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.primary
-                                  .withOpacity(0.3 + _pulseController.value * 0.2),
-                              blurRadius: 30,
-                              spreadRadius: 5,
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop && !_transferredToReport) {
+          _controller.cancelAnalysis();
+        }
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // ── Animated icon / Error icon ─────────────────────────────
+                  if (!hasError)
+                    AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: 1.0 + _pulseController.value * 0.08,
+                          child: Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.primaryGradient,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primary.withValues(
+                                    alpha: 0.3 + _pulseController.value * 0.2,
+                                  ),
+                                  blurRadius: 30,
+                                  spreadRadius: 5,
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.memory_rounded,
-                          size: 40,
-                          color: Colors.white,
-                        ),
+                            child: const Icon(
+                              Icons.memory_rounded,
+                              size: 40,
+                              color: Colors.white,
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppTheme.error.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 32),
-
-                Text(
-                  'Analyzing Game',
-                  style: GoogleFonts.inter(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${widget.game.white} vs ${widget.game.black}',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // ── Progress bar ──────────────────────────────
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 8,
-                    backgroundColor: AppTheme.surfaceLight,
-                    valueColor: AlwaysStoppedAnimation(
-                      progress < 1.0 ? AppTheme.primary : AppTheme.accent,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                Text(
-                  totalPlies > 0
-                      ? 'Move $currentPly / $totalPlies'
-                      : 'Preparing...',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: AppTheme.textTertiary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Stockfish depth ${context.read<SettingsManager>().engineDepth}',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: AppTheme.textTertiary,
-                  ),
-                ),
-
-                if (am.error != null) ...[
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.error.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      am.error!,
-                      style: const TextStyle(
+                      child: const Icon(
+                        Icons.error_outline_rounded,
+                        size: 48,
                         color: AppTheme.error,
-                        fontSize: 13,
                       ),
-                      textAlign: TextAlign.center,
+                    ),
+                  const SizedBox(height: 32),
+
+                  Text(
+                    hasError ? 'Engine Error' : 'Analyzing Game',
+                    style: GoogleFonts.inter(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: hasError ? AppTheme.error : AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${widget.game.white} vs ${widget.game.black}',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  if (!hasError) ...[
+                    // ── Progress bar ──────────────────────────────
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 8,
+                        backgroundColor: AppTheme.surfaceLight,
+                        valueColor: AlwaysStoppedAnimation(
+                          progress < 1.0 ? AppTheme.primary : AppTheme.accent,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    Text(
+                      totalPlies > 0
+                          ? 'Move $currentPly / $totalPlies'
+                          : 'Preparing Stockfish...',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Stockfish depth ${context.read<SettingsManager>().engineDepth}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
+                  ] else ...[
+                    // ── Error container ───────────────────────────
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.error.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Stockfish engine failed to start or is unsupported on this platform architecture.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            am.error ?? 'Unknown engine error.',
+                            style: const TextStyle(
+                              color: AppTheme.error,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 32),
+
+                  // ── Cancel / Back button ───────────────────────
+                  TextButton(
+                    onPressed: () {
+                      _controller.cancelAnalysis();
+                      Navigator.pop(context);
+                    },
+                    child: Text(
+                      hasError ? 'Go Back' : 'Cancel',
+                      style: const TextStyle(color: AppTheme.textTertiary),
                     ),
                   ),
                 ],
-
-                const SizedBox(height: 32),
-
-                // ── Cancel ────────────────────────────────────
-                TextButton(
-                  onPressed: () {
-                    _controller.cancelAnalysis();
-                    Navigator.pop(context);
-                  },
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: AppTheme.textTertiary),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

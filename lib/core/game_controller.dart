@@ -227,4 +227,10 @@ class GameController extends ChangeNotifier {
     analysisManager.cancel();
     notifyListeners();
   }
+
+  @override
+  void dispose() {
+    analysisManager.dispose();
+    super.dispose();
+  }
 }

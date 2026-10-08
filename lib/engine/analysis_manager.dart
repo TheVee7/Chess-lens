@@ -347,4 +347,11 @@ class AnalysisManager extends ChangeNotifier {
     _analyzing = false;
     notifyListeners();
   }
+
+  @override
+  void dispose() {
+    cancel();
+    _engine.dispose();
+    super.dispose();
+  }
 }
