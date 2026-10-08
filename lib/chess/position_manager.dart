@@ -46,9 +46,9 @@ class PositionManager {
       'promotion': ?promotion,
     });
     if (moveObj == false) return null;
-    final san = _chess.san_moves().last;
+    final rawSan = _chess.san_moves().last;
     _chess.undo();
-    return san;
+    return rawSan?.replaceFirst(RegExp(r'^\d+\.\s*'), '');
   }
 
   /// Convert a SAN move (e.g. "Nf3") to UCI (e.g. "g1f3") in the current position.

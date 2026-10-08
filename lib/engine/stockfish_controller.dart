@@ -19,6 +19,19 @@ class EngineException implements Exception {
   String toString() => 'EngineException: $message';
 }
 
+/// Abstract interface for a chess analysis engine to facilitate testing and decoupling.
+abstract class Engine {
+  Future<void> init();
+  Future<void> newGame();
+  Future<AnalysisResult> analyze({
+    required String fen,
+    required int depth,
+    int multiPv = 1,
+  });
+  void stop();
+  void dispose();
+}
+
 /// Controller for the Stockfish engine via the `stockfish` Flutter plugin.
 ///
 /// Usage:
@@ -26,7 +39,7 @@ class EngineException implements Exception {
 ///   await sf.init();
 ///   final info = await sf.analyze(fen: '...', depth: 18, multiPv: 2);
 ///   sf.dispose();
-class StockfishController {
+class StockfishController implements Engine {
   static Stockfish? _activeStockfish;
 
   Stockfish? _stockfish;
@@ -52,6 +65,7 @@ class StockfishController {
   bool get isReady => _ready && _stockfish?.state.value == StockfishState.ready;
 
   /// Send ucinewgame once and await readyok to reset hash once per game.
+  @override
   Future<void> newGame() async {
     if (_stockfish == null || !_ready) return;
     await _stopPreviousSearch();
@@ -75,6 +89,7 @@ class StockfishController {
   }
 
   /// Initialize the Stockfish process.
+  @override
   Future<void> init() async {
     _isDisposed = false;
     _ready = false;
@@ -204,6 +219,7 @@ class StockfishController {
   }
 
   /// Analyze a position. Returns the best info lines for each MultiPV.
+  @override
   Future<AnalysisResult> analyze({
     required String fen,
     int depth = 18,
@@ -269,6 +285,7 @@ class StockfishController {
     }
   }
 
+  @override
   void stop() {
     _cancelled = true;
     if (_isSearching) {
@@ -285,6 +302,7 @@ class StockfishController {
   }
 
   /// Dispose of the engine. Safe to call multiple times without throwing.
+  @override
   void dispose() {
     if (_isDisposed) return;
     _isDisposed = true;

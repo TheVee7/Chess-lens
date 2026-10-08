@@ -11,8 +11,12 @@ import 'uci_parser.dart';
 
 /// Orchestrates Stockfish analysis of every position in a game.
 class AnalysisManager extends ChangeNotifier {
-  final StockfishController _engine = StockfishController();
-  final PositionManager _positionManager = PositionManager();
+  final Engine _engine;
+  final PositionManager _positionManager;
+
+  AnalysisManager({Engine? engine, PositionManager? positionManager})
+      : _engine = engine ?? StockfishController(),
+        _positionManager = positionManager ?? PositionManager();
 
   bool _analyzing = false;
   bool get isAnalyzing => _analyzing;
@@ -118,7 +122,7 @@ class AnalysisManager extends ChangeNotifier {
         final playedUci = move.uci ?? _positionManager.sanToUci(move.san) ?? '';
 
         // Classification
-        final classification = _classifyMove(
+        final classification = classifyMove(
           evalLoss,
           resultBefore.bestMove,
           playedUci,
@@ -262,7 +266,7 @@ class AnalysisManager extends ChangeNotifier {
     return whiteToMove ? r.scoreMate : -r.scoreMate!;
   }
 
-  static MoveClassification _classifyMove(
+  static MoveClassification classifyMove(
     double evalLoss,
     String bestMoveUci,
     String playedUci,
