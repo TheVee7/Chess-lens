@@ -32,7 +32,8 @@ class GameController extends ChangeNotifier {
 
   String get currentFen {
     if (analysis == null || _currentPlyIndex < 0) {
-      return 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      return _game?.startFen ??
+          'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
     }
     return analysis!.moves[_currentPlyIndex].fenAfter;
   }

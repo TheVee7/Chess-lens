@@ -72,8 +72,7 @@ class AnalysisManager extends ChangeNotifier {
       await _engine.newGame();
       if (_cancelled) return null;
 
-      final startFen = game.headers['FEN'] ??
-          'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      final startFen = game.startFen;
       final fens = <String>[startFen, ...game.moves.map((m) => m.fen!)];
       final positionResults = List<AnalysisResult?>.filled(fens.length, null);
 

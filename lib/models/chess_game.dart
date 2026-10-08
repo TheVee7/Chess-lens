@@ -21,6 +21,8 @@ class ChessGame {
 
   int get totalMoves => (moves.length + 1) ~/ 2; // full moves (pairs)
   String get pgn => rawPgn;
+  String get startFen =>
+      headers['FEN'] ?? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 }
 
 /// A single half-move (ply) in the game.
