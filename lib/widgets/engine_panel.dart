@@ -38,7 +38,10 @@ class EnginePanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Move header ─────────────────────────────────────
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
                 padding:
@@ -56,10 +59,8 @@ class EnginePanel extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
               _ClassificationBadge(classification: a.classification),
-              if (a.engineTimedOut) ...[
-                const SizedBox(width: 8),
+              if (a.engineTimedOut)
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -86,7 +87,6 @@ class EnginePanel extends StatelessWidget {
                     ],
                   ),
                 ),
-              ],
             ],
           ),
           const SizedBox(height: 12),
@@ -120,12 +120,15 @@ class EnginePanel extends StatelessWidget {
                 const Icon(Icons.lightbulb_outline,
                     size: 16, color: AppTheme.accent),
                 const SizedBox(width: 6),
-                Text(
-                  'Best: ${a.bestMoveSan}',
-                  style: const TextStyle(
-                    color: AppTheme.accent,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                Expanded(
+                  child: Text(
+                    'Best: ${a.bestMoveSan}',
+                    style: const TextStyle(
+                      color: AppTheme.accent,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -135,15 +138,16 @@ class EnginePanel extends StatelessWidget {
           // ── PV ─────────────────────────────────────────────
           if (a.pv.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(
-              'PV: ${a.pv.join(' ')}',
-              style: const TextStyle(
-                color: AppTheme.textTertiary,
-                fontSize: 12,
-                fontFamily: 'monospace',
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Text(
+                'PV: ${a.pv.join(' ')}',
+                style: const TextStyle(
+                  color: AppTheme.textTertiary,
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ],
         ],

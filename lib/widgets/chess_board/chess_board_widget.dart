@@ -130,7 +130,7 @@ class _BoardPainter extends CustomPainter {
                       : const Color(0xFF1A1D27),
                   shadows: [
                     Shadow(
-                      color: Colors.black.withOpacity(0.4),
+                      color: Colors.black.withValues(alpha: 0.4),
                       blurRadius: 3,
                       offset: const Offset(1, 1),
                     ),

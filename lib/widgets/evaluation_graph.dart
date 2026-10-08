@@ -8,22 +8,27 @@ class EvaluationGraphWidget extends StatelessWidget {
   final List<MoveAnalysis> moves;
   final int? selectedPly;
   final ValueChanged<int>? onTapMove;
+  final double? height;
 
   const EvaluationGraphWidget({
     super.key,
     required this.moves,
     this.selectedPly,
     this.onTapMove,
+    this.height,
   });
 
   @override
   Widget build(BuildContext context) {
+    final screenH = MediaQuery.sizeOf(context).height;
+    final graphHeight = height ?? (screenH * 0.22).clamp(120.0, 190.0);
+
     if (moves.isEmpty) {
-      return const SizedBox(height: 160);
+      return SizedBox(height: graphHeight);
     }
 
     return Container(
-      height: 180,
+      height: graphHeight,
       decoration: BoxDecoration(
         color: AppTheme.surfaceLight,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -89,12 +94,12 @@ class _EvalGraphPainter extends CustomPainter {
       canvas.drawLine(
         Offset(0, evalToY(cp)),
         Offset(w, evalToY(cp)),
-        gridPaint..color = AppTheme.surfaceBorder.withOpacity(0.3),
+        gridPaint..color = AppTheme.surfaceBorder.withValues(alpha: 0.3),
       );
       canvas.drawLine(
         Offset(0, evalToY(-cp)),
         Offset(w, evalToY(-cp)),
-        gridPaint..color = AppTheme.surfaceBorder.withOpacity(0.3),
+        gridPaint..color = AppTheme.surfaceBorder.withValues(alpha: 0.3),
       );
     }
 
@@ -127,11 +132,11 @@ class _EvalGraphPainter extends CustomPainter {
 
     canvas.drawPath(
       whiteFill,
-      Paint()..color = Colors.white.withOpacity(0.15),
+      Paint()..color = Colors.white.withValues(alpha: 0.15),
     );
     canvas.drawPath(
       blackFill,
-      Paint()..color = AppTheme.textTertiary.withOpacity(0.15),
+      Paint()..color = AppTheme.textTertiary.withValues(alpha: 0.15),
     );
 
     // ── Line ─────────────────────────────────────────────────
@@ -199,7 +204,7 @@ class _EvalGraphPainter extends CustomPainter {
         Offset(x, 0),
         Offset(x, h),
         Paint()
-          ..color = AppTheme.accent.withOpacity(0.3)
+          ..color = AppTheme.accent.withValues(alpha: 0.3)
           ..strokeWidth = 1,
       );
     }

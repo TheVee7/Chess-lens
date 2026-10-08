@@ -78,12 +78,16 @@ class _QuickReportScreenState extends State<QuickReportScreen> {
                 ),
                 const SizedBox(height: 6),
                 Center(
-                  child: Text(
-                    '${game.white} vs ${game.black}',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${game.white} vs ${game.black}',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
@@ -102,43 +106,83 @@ class _QuickReportScreenState extends State<QuickReportScreen> {
                 const SizedBox(height: 24),
 
                 // ── Accuracy cards ────────────────────────────
-                Row(
-                  children: [
-                    Expanded(
-                      child: _AccuracyCard(
-                        label: game.white,
-                        accuracy: analysis.whiteAccuracy,
-                        isWhite: true,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _AccuracyCard(
-                        label: game.black,
-                        accuracy: analysis.blackAccuracy,
-                        isWhite: false,
-                      ),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 340;
+                    if (isNarrow) {
+                      return Column(
+                        children: [
+                          _AccuracyCard(
+                            label: game.white,
+                            accuracy: analysis.whiteAccuracy,
+                            isWhite: true,
+                          ),
+                          const SizedBox(height: 12),
+                          _AccuracyCard(
+                            label: game.black,
+                            accuracy: analysis.blackAccuracy,
+                            isWhite: false,
+                          ),
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: _AccuracyCard(
+                            label: game.white,
+                            accuracy: analysis.whiteAccuracy,
+                            isWhite: true,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _AccuracyCard(
+                            label: game.black,
+                            accuracy: analysis.blackAccuracy,
+                            isWhite: false,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 20),
 
                 // ── Classification breakdown ──────────────────
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _ClassificationColumn(
-                        classifications: analysis.whiteClassifications,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _ClassificationColumn(
-                        classifications: analysis.blackClassifications,
-                      ),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 340;
+                    if (isNarrow) {
+                      return Column(
+                        children: [
+                          _ClassificationColumn(
+                            classifications: analysis.whiteClassifications,
+                          ),
+                          const SizedBox(height: 12),
+                          _ClassificationColumn(
+                            classifications: analysis.blackClassifications,
+                          ),
+                        ],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _ClassificationColumn(
+                            classifications: analysis.whiteClassifications,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _ClassificationColumn(
+                            classifications: analysis.blackClassifications,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
 
@@ -236,12 +280,17 @@ class _QuickReportScreenState extends State<QuickReportScreen> {
                               const Icon(Icons.play_arrow_rounded,
                                   color: Colors.white, size: 22),
                               const SizedBox(width: 8),
-                              Text(
-                                'Review Game',
-                                style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    'Review Game',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -308,26 +357,30 @@ class _AccuracyCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textSecondary,
+              Flexible(
+                child: Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            '${accuracy.toStringAsFixed(0)}%',
-            style: GoogleFonts.inter(
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              color: color,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              '${accuracy.toStringAsFixed(0)}%',
+              style: GoogleFonts.inter(
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
             ),
           ),
           Text(

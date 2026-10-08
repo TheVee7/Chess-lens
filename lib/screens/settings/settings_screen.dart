@@ -114,7 +114,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   obscureText: true,
                 ),
                 const SizedBox(height: 16),
-                Row(
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     if (_isEditingKey && keyMgr.hasKey)
                       TextButton(
@@ -129,7 +133,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: TextStyle(color: AppTheme.textTertiary),
                         ),
                       ),
-                    const Spacer(),
                     ElevatedButton(
                       onPressed: keyMgr.isValidating
                           ? null
@@ -201,22 +204,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     size: 20,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    hasError
-                        ? 'Key Verification Failed'
-                        : (isValid == true
-                            ? 'API Key Connected & Verified'
-                            : 'API Key Saved'),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: hasError
-                          ? AppTheme.error
+                  Expanded(
+                    child: Text(
+                      hasError
+                          ? 'Key Verification Failed'
                           : (isValid == true
-                              ? AppTheme.accent
-                              : AppTheme.textPrimary),
+                              ? 'API Key Connected & Verified'
+                              : 'API Key Saved'),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: hasError
+                            ? AppTheme.error
+                            : (isValid == true
+                                ? AppTheme.accent
+                                : AppTheme.textPrimary),
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.delete_outline_rounded,
                         color: AppTheme.error, size: 20),
@@ -244,13 +248,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
               const SizedBox(height: 16),
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   OutlinedButton(
                     onPressed: () => setState(() => _isEditingKey = true),
                     child: const Text('Change Key'),
                   ),
-                  const SizedBox(width: 12),
                   OutlinedButton.icon(
                     onPressed: keyMgr.isValidating
                         ? null
@@ -317,7 +322,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               TextButton.icon(
                 icon: const Icon(Icons.play_circle_fill_rounded,
@@ -328,7 +337,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 onPressed: () => _launchUrl(AppConfig.geminiTutorialUrl),
               ),
-              const Spacer(),
               TextButton(
                 onPressed: () => _launchUrl(AppConfig.geminiApiKeyUrl),
                 child: const Text(

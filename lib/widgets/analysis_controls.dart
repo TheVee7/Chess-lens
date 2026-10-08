@@ -103,11 +103,14 @@ class _ControlButton extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: onTap,
-          child: Container(
-            padding: EdgeInsets.all(large ? 10 : 8),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: large ? 6 : 4,
+              vertical: large ? 8 : 6,
+            ),
             child: Icon(
               icon,
-              size: large ? 28 : 22,
+              size: large ? 24 : 20,
               color: onTap != null
                   ? (color ?? AppTheme.textPrimary)
                   : AppTheme.textTertiary,

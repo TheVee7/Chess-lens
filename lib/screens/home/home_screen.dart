@@ -95,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.primary.withOpacity(0.4),
+                      color: AppTheme.primary.withValues(alpha: 0.4),
                       blurRadius: 30,
                       offset: const Offset(0, 8),
                     ),
@@ -110,13 +110,16 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 24),
 
               // ── Title ───────────────────────────────────────
-              Text(
-                'ChessLens',
-                style: GoogleFonts.inter(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.textPrimary,
-                  letterSpacing: -1,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'ChessLens',
+                  style: GoogleFonts.inter(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                    letterSpacing: -1,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -140,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.primary.withOpacity(0.3),
+                        color: AppTheme.primary.withValues(alpha: 0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 6),
                       ),
@@ -157,19 +160,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 18, horizontal: 16),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.content_paste_rounded,
                                 color: Colors.white, size: 22),
                             const SizedBox(width: 10),
-                            Text(
-                              'Analyze a Game',
-                              style: GoogleFonts.inter(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  'Analyze a Game',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -213,8 +222,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: keyMgr.hasKey
-                                ? AppTheme.accent.withOpacity(0.15)
-                                : AppTheme.warning.withOpacity(0.15),
+                                ? AppTheme.accent.withValues(alpha: 0.15)
+                                : AppTheme.warning.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
@@ -265,21 +274,21 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 40),
 
               // ── Features ────────────────────────────────────
-              _FeatureTile(
+              const _FeatureTile(
                 icon: Icons.speed_rounded,
                 color: AppTheme.accent,
                 title: 'Local Stockfish',
                 subtitle: 'Analyze entirely offline, no server needed',
               ),
               const SizedBox(height: 12),
-              _FeatureTile(
+              const _FeatureTile(
                 icon: Icons.auto_awesome_rounded,
                 color: AppTheme.primary,
                 title: 'Gemini Coach',
                 subtitle: 'Human-level explanations of important moves',
               ),
               const SizedBox(height: 12),
-              _FeatureTile(
+              const _FeatureTile(
                 icon: Icons.insights_rounded,
                 color: AppTheme.warning,
                 title: 'Quick Reports',
@@ -321,7 +330,7 @@ class _FeatureTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 22),

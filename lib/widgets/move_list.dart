@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../models/move_analysis.dart';
 
-/// Scrollable move list with classification indicators.
-class MoveListWidget extends StatelessWidget {
+/// Scrollable move list with classification indicators, supporting 200+ plies
+/// and auto-scrolling to the selected move.
+class MoveListWidget extends StatefulWidget {
   final List<MoveAnalysis> moves;
   final int? selectedPly;
   final ValueChanged<int>? onTapMove;
@@ -16,20 +17,49 @@ class MoveListWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    // Group into full moves (pairs of white + black).
-    final rows = <Widget>[];
-    for (int i = 0; i < moves.length; i += 2) {
-      final white = moves[i];
-      final black = (i + 1 < moves.length) ? moves[i + 1] : null;
-      rows.add(_MoveRow(
-        moveNumber: white.moveNumber,
-        white: white,
-        black: black,
-        selectedPly: selectedPly,
-        onTap: onTapMove,
-      ));
+  State<MoveListWidget> createState() => _MoveListWidgetState();
+}
+
+class _MoveListWidgetState extends State<MoveListWidget> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void didUpdateWidget(MoveListWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedPly != oldWidget.selectedPly) {
+      _scrollToSelected();
     }
+  }
+
+  void _scrollToSelected() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.selectedPly == null || !_scrollController.hasClients) {
+        return;
+      }
+      final rowIndex = widget.selectedPly! ~/ 2;
+      const rowEstimatedHeight = 36.0;
+      final target = (rowIndex * rowEstimatedHeight) - 72.0;
+      final clamped = target.clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      );
+      _scrollController.animateTo(
+        clamped,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pairCount = (widget.moves.length + 1) ~/ 2;
 
     return Container(
       decoration: BoxDecoration(
@@ -38,10 +68,27 @@ class MoveListWidget extends StatelessWidget {
         border: Border.all(color: AppTheme.surfaceBorder),
       ),
       constraints: const BoxConstraints(maxHeight: 300),
-      child: ListView(
+      child: ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.symmetric(vertical: 4),
-        shrinkWrap: true,
-        children: rows,
+        itemCount: pairCount,
+        itemExtent: 36.0,
+        itemBuilder: (context, index) {
+          final whiteIndex = index * 2;
+          final white = widget.moves[whiteIndex];
+          final black = (whiteIndex + 1 < widget.moves.length)
+              ? widget.moves[whiteIndex + 1]
+              : null;
+
+          return _MoveRow(
+            key: ValueKey('move_row_$index'),
+            moveNumber: white.moveNumber,
+            white: white,
+            black: black,
+            selectedPly: widget.selectedPly,
+            onTap: widget.onTapMove,
+          );
+        },
       ),
     );
   }
@@ -55,6 +102,7 @@ class _MoveRow extends StatelessWidget {
   final ValueChanged<int>? onTap;
 
   const _MoveRow({
+    super.key,
     required this.moveNumber,
     required this.white,
     this.black,
@@ -70,7 +118,7 @@ class _MoveRow extends StatelessWidget {
         children: [
           // Move number.
           SizedBox(
-            width: 32,
+            width: 34,
             child: Text(
               '$moveNumber.',
               style: const TextStyle(
@@ -78,6 +126,8 @@ class _MoveRow extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           // White move.
@@ -118,6 +168,8 @@ class _MoveCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final symbol = _classificationSymbol(analysis.classification);
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -125,26 +177,30 @@ class _MoveCell extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primary.withOpacity(0.2)
+              ? AppTheme.primary.withValues(alpha: 0.2)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              analysis.san,
-              style: TextStyle(
-                color: isSelected ? AppTheme.accent : AppTheme.textPrimary,
-                fontSize: 14,
-                fontWeight:
-                    isSelected ? FontWeight.w700 : FontWeight.w500,
+            Flexible(
+              child: Text(
+                analysis.san,
+                style: TextStyle(
+                  color: isSelected ? AppTheme.accent : AppTheme.textPrimary,
+                  fontSize: 14,
+                  fontWeight:
+                      isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (_classificationSymbol(analysis.classification) != null) ...[
+            if (symbol != null) ...[
               const SizedBox(width: 4),
               Text(
-                _classificationSymbol(analysis.classification)!,
+                symbol,
                 style: TextStyle(
                   color: _classificationColor(analysis.classification),
                   fontSize: 12,
