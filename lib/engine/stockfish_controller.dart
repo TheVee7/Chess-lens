@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:stockfish/stockfish.dart';
 import 'uci_parser.dart';
 
@@ -36,9 +37,14 @@ class StockfishController {
   Completer<void>? _uciOkCompleter;
   Completer<void>? _readyOkCompleter;
   Completer<AnalysisResult>? _analysisCompleter;
+  Completer<void>? _stopCompleter;
 
   bool _cancelled = false;
   int? _currentMultiPv;
+  bool _isSearching = false;
+  int _currentSearchId = 0;
+
+  int get currentSearchId => _currentSearchId;
 
   final Map<int, UciInfo> _currentInfoLines = {};
   String? _currentBestMove;
@@ -48,6 +54,7 @@ class StockfishController {
   /// Send ucinewgame once and await readyok to reset hash once per game.
   Future<void> newGame() async {
     if (_stockfish == null || !_ready) return;
+    await _stopPreviousSearch();
     _sendStdin('ucinewgame');
     _readyOkCompleter = Completer<void>();
     _sendStdin('isready');
@@ -56,10 +63,23 @@ class StockfishController {
     } catch (_) {}
   }
 
+  Future<void> _stopPreviousSearch() async {
+    if (!_isSearching) return;
+    _isSearching = false;
+    _sendStdin('stop');
+    if (_stopCompleter != null && !_stopCompleter!.isCompleted) {
+      try {
+        await _stopCompleter!.future.timeout(const Duration(milliseconds: 500));
+      } catch (_) {}
+    }
+  }
+
   /// Initialize the Stockfish process.
   Future<void> init() async {
     _isDisposed = false;
     _ready = false;
+    _isSearching = false;
+    _currentMultiPv = null;
 
     // Acquire stockfish engine instance asynchronously.
     _stockfish = await _acquireStockfish();
@@ -152,20 +172,31 @@ class StockfishController {
       }
     } else if (trimmed.startsWith('info ')) {
       final info = UciParser.parseInfoLine(trimmed);
-      if (info != null && info.depth > 0) {
-        final existing = _currentInfoLines[info.multiPv];
-        if (existing == null || info.depth >= existing.depth) {
+      if (info != null && info.depth > 0 && _isSearching) {
+        if (!info.isBound) {
           _currentInfoLines[info.multiPv] = info;
+        } else {
+          // Ignore bound lines when an exact score is already present
+          final existing = _currentInfoLines[info.multiPv];
+          if (existing == null || (existing.isBound && info.depth >= existing.depth)) {
+            _currentInfoLines[info.multiPv] = info;
+          }
         }
       }
     } else if (trimmed.startsWith('bestmove ') || trimmed.startsWith('bestmove')) {
       final bm = UciParser.parseBestMove(trimmed);
-      if (bm != null) {
+      if (_stopCompleter != null && !_stopCompleter!.isCompleted) {
+        _stopCompleter!.complete();
+      }
+
+      if (_isSearching) {
+        _isSearching = false;
         _currentBestMove = bm;
         if (_analysisCompleter != null && !_analysisCompleter!.isCompleted) {
           _analysisCompleter!.complete(AnalysisResult(
-            bestMove: _currentBestMove!,
+            bestMove: _currentBestMove ?? '',
             lines: _currentInfoLines.values.toList(),
+            partial: false,
           ));
         }
       }
@@ -183,16 +214,10 @@ class StockfishController {
     }
 
     _cancelled = false;
+    await _stopPreviousSearch();
+
     _currentInfoLines.clear();
     _currentBestMove = null;
-
-    _sendStdin('stop');
-
-    _readyOkCompleter = Completer<void>();
-    _sendStdin('isready');
-    try {
-      await _readyOkCompleter!.future.timeout(const Duration(seconds: 5), onTimeout: () {});
-    } catch (_) {}
 
     if (_cancelled) {
       return const AnalysisResult(bestMove: '', lines: []);
@@ -204,26 +229,57 @@ class StockfishController {
     }
     _sendStdin('position fen $fen');
 
+    _currentSearchId++;
+    _isSearching = true;
+    _stopCompleter = Completer<void>();
     _analysisCompleter = Completer<AnalysisResult>();
     _sendStdin('go depth $depth');
 
+    final timeoutDuration = Duration(seconds: math.max(30, depth * 3));
+
     try {
-      return await _analysisCompleter!.future;
+      return await _analysisCompleter!.future.timeout(timeoutDuration);
+    } on TimeoutException {
+      // Scaled timeout reached: stop engine and collect partial info
+      _isSearching = false;
+      _sendStdin('stop');
+
+      if (_stopCompleter != null && !_stopCompleter!.isCompleted) {
+        try {
+          await _stopCompleter!.future.timeout(const Duration(milliseconds: 500));
+        } catch (_) {}
+      }
+
+      final fallbackMove = _currentBestMove ??
+          (_currentInfoLines[1]?.pv.isNotEmpty == true
+              ? _currentInfoLines[1]!.pv.first
+              : '');
+
+      return AnalysisResult(
+        bestMove: fallbackMove,
+        lines: _currentInfoLines.values.toList(),
+        partial: true,
+      );
     } catch (e) {
       return AnalysisResult(
         bestMove: _currentBestMove ?? '',
         lines: _currentInfoLines.values.toList(),
+        partial: true,
       );
     }
   }
 
   void stop() {
     _cancelled = true;
-    _sendStdin('stop');
+    if (_isSearching) {
+      _isSearching = false;
+      _sendStdin('stop');
+    }
     if (_analysisCompleter != null && !_analysisCompleter!.isCompleted) {
       _analysisCompleter!.complete(AnalysisResult(
         bestMove: _currentBestMove ?? '',
         lines: _currentInfoLines.values.toList(),
+        partial: true,
       ));
     }
   }
@@ -233,6 +289,8 @@ class StockfishController {
     if (_isDisposed) return;
     _isDisposed = true;
     _ready = false;
+    _isSearching = false;
+    _currentMultiPv = null;
 
     try {
       _subscription?.cancel();
@@ -261,10 +319,12 @@ class StockfishController {
 class AnalysisResult {
   final String bestMove;       // UCI best move
   final List<UciInfo> lines;   // one per MultiPV line
+  final bool partial;
 
   const AnalysisResult({
     required this.bestMove,
     required this.lines,
+    this.partial = false,
   });
 
   /// The top line's centipawn score (from engine / side-to-move perspective).

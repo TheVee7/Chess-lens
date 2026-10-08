@@ -162,6 +162,7 @@ class AnalysisManager extends ChangeNotifier {
           pv: pvSan,
           evalLoss: evalLoss,
           classification: classification,
+          engineTimedOut: resultBefore.partial || resultAfter.partial,
         ));
 
         _currentPly = i + 1;

@@ -33,6 +33,7 @@ class MoveAnalysis {
   // Derived
   final double evalLoss;        // always >= 0, from the side-to-move's view
   final MoveClassification classification;
+  final bool engineTimedOut;
 
   const MoveAnalysis({
     required this.plyIndex,
@@ -52,6 +53,7 @@ class MoveAnalysis {
     this.pv = const [],
     required this.evalLoss,
     required this.classification,
+    this.engineTimedOut = false,
   });
 
   /// Human-readable eval string (e.g., "+1.5" or "M3").
