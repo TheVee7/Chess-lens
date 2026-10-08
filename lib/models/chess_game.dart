@@ -30,6 +30,7 @@ class GameMove {
   final bool isWhite;
   final String san;         // e.g. "Nf3"
   final String? fen;        // position AFTER this move
+  final String? uci;        // e.g. "g1f3"
 
   const GameMove({
     required this.plyIndex,
@@ -37,13 +38,15 @@ class GameMove {
     required this.isWhite,
     required this.san,
     this.fen,
+    this.uci,
   });
 
-  GameMove copyWith({String? fen}) => GameMove(
+  GameMove copyWith({String? fen, String? uci}) => GameMove(
         plyIndex: plyIndex,
         moveNumber: moveNumber,
         isWhite: isWhite,
         san: san,
         fen: fen ?? this.fen,
+        uci: uci ?? this.uci,
       );
 }

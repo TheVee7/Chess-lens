@@ -1,3 +1,5 @@
+import '../core/config/app_config.dart';
+
 /// Classification of a move's quality.
 enum MoveClassification {
   best,
@@ -73,5 +75,5 @@ class MoveAnalysis {
       classification == MoveClassification.blunder ||
       classification == MoveClassification.mistake ||
       classification == MoveClassification.inaccuracy ||
-      evalLoss >= 40;
+      evalLoss >= AppConfig.geminiImportanceThreshold;
 }

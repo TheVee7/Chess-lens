@@ -49,6 +49,13 @@ class PgnParser {
           'Invalid move "$san" at ply ${i + 1}',
         );
       }
+      final undoMap = board.undo();
+      final from = undoMap?['from'] ?? '';
+      final to = undoMap?['to'] ?? '';
+      final promo = undoMap?['promotion'] != null ? undoMap!['promotion'].toString().toLowerCase() : '';
+      final uci = '$from$to$promo';
+      board.move(san);
+
       final moveNumber = (i ~/ 2) + 1;
       moves.add(GameMove(
         plyIndex: i,
@@ -56,6 +63,7 @@ class PgnParser {
         isWhite: i.isEven,
         san: san,
         fen: board.fen,
+        uci: uci,
       ));
     }
 

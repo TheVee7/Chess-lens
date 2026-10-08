@@ -99,36 +99,31 @@ class AnalysisManager extends ChangeNotifier {
         final resultBefore = positionResults[i]!;
         final resultAfter = positionResults[i + 1]!;
 
-        // Eval before (normalised to White's perspective)
-        final evalBeforeData = _scoreToWhitePerspective(resultBefore, isWhite);
-        final evalBefore = evalBeforeData.score;
-        final isMateBefore = evalBeforeData.isMate;
-        final mateBefore = evalBeforeData.mateIn;
-
-        final evalAfterData = _scoreToWhitePerspective(resultAfter, !isWhite);
-        final evalAfter = evalAfterData.score;
-        final isMateAfter = evalAfterData.isMate;
-        final mateAfter = evalAfterData.mateIn;
+        final evalBefore = toWhiteCp(resultBefore, isWhite);
+        final evalAfter = toWhiteCp(resultAfter, !isWhite);
+        final isMateBefore = resultBefore.scoreMate != null;
+        final isMateAfter = resultAfter.scoreMate != null;
+        final mateBefore = toWhiteMate(resultBefore, isWhite);
+        final mateAfter = toWhiteMate(resultAfter, !isWhite);
 
         // Eval loss (from the mover's perspective, ≥ 0)
-        double evalLoss;
-        if (isWhite) {
-          evalLoss = evalBefore - evalAfter;
-        } else {
-          evalLoss = evalAfter - evalBefore;
-        }
-        if (evalLoss < 0) evalLoss = 0;
+        final moverCpBefore = isWhite ? evalBefore : -evalBefore;
+        final moverCpAfter = isWhite ? evalAfter : -evalAfter;
+        final evalLoss = math.max(0.0, moverCpBefore - moverCpAfter);
 
         // Best move SAN
         _positionManager.load(fenBefore);
         final bestSan = _positionManager.uciToSan(resultBefore.bestMove);
 
+        // Played move UCI
+        final playedUci = move.uci ?? _positionManager.sanToUci(move.san) ?? '';
+
         // Classification
         final classification = _classifyMove(
           evalLoss,
           resultBefore.bestMove,
-          move.san,
-          fenBefore,
+          playedUci,
+          resultBefore,
         );
 
         // PV in SAN
@@ -176,8 +171,8 @@ class AnalysisManager extends ChangeNotifier {
 
         _result = GameAnalysis(
           moves: analyses,
-          whiteAccuracy: _calcAccuracy(whiteMoves),
-          blackAccuracy: _calcAccuracy(blackMoves),
+          whiteAccuracy: calcAccuracy(whiteMoves),
+          blackAccuracy: calcAccuracy(blackMoves),
           whiteClassifications: _countClassifications(whiteMoves),
           blackClassifications: _countClassifications(blackMoves),
         );
@@ -240,34 +235,60 @@ class AnalysisManager extends ChangeNotifier {
     );
   }
 
-  _EvalData _scoreToWhitePerspective(AnalysisResult result, bool isWhiteToMove) {
-    if (result.scoreMate != null) {
-      final mateIn = isWhiteToMove ? result.scoreMate! : -result.scoreMate!;
-      final score = result.scoreMate! > 0 ? 10000.0 : -10000.0;
-      return _EvalData(
-        score: isWhiteToMove ? score : -score,
-        isMate: true,
-        mateIn: mateIn,
-      );
+  /// Normalizes engine score from side-to-move perspective to White-perspective centipawns.
+  /// Mate-in-N is converted to bounded centipawns: sign * (10000 - |N| * 10), clamped.
+  static double toWhiteCp(AnalysisResult r, bool whiteToMove) {
+    double moverCp;
+    if (r.scoreMate != null) {
+      final mate = r.scoreMate!;
+      if (mate > 0) {
+        // Side to move delivers mate in N
+        moverCp = (10000.0 - mate.abs() * 10.0).clamp(9000.0, 10000.0);
+      } else if (mate < 0) {
+        // Side to move is mated in |N|
+        moverCp = -(10000.0 - mate.abs() * 10.0).clamp(9000.0, 10000.0);
+      } else {
+        // Mate 0 (already checkmated)
+        moverCp = -10000.0;
+      }
     } else {
-      final score = (result.scoreCp ?? 0).toDouble();
-      return _EvalData(
-        score: isWhiteToMove ? score : -score,
-        isMate: false,
-        mateIn: null,
-      );
+      moverCp = (r.scoreCp ?? 0).toDouble().clamp(-10000.0, 10000.0);
     }
+    return whiteToMove ? moverCp : -moverCp;
   }
 
-  MoveClassification _classifyMove(
+  /// Returns mate-in-N from White's perspective (+N if White mates, -N if Black mates).
+  static int? toWhiteMate(AnalysisResult r, bool whiteToMove) {
+    if (r.scoreMate == null) return null;
+    return whiteToMove ? r.scoreMate : -r.scoreMate!;
+  }
+
+  static MoveClassification _classifyMove(
     double evalLoss,
     String bestMoveUci,
-    String playedSan,
-    String fen,
+    String playedUci,
+    AnalysisResult resultBefore,
   ) {
-    _positionManager.load(fen);
-    final bestSan = _positionManager.uciToSan(bestMoveUci);
-    if (bestSan == playedSan) return MoveClassification.best;
+    if (playedUci.isNotEmpty) {
+      if (playedUci == bestMoveUci) {
+        return MoveClassification.best;
+      }
+
+      // Treat as best if matching any top MultiPV line within 10 cp of top line
+      if (resultBefore.lines.isNotEmpty) {
+        final topLine = resultBefore.lines.first;
+        final topScore = topLine.score;
+        if (topScore != null) {
+          for (final line in resultBefore.lines) {
+            if (line.pv.isNotEmpty && line.pv.first == playedUci) {
+              if (line.score != null && (topScore - line.score!).abs() <= 10) {
+                return MoveClassification.best;
+              }
+            }
+          }
+        }
+      }
+    }
 
     if (evalLoss >= AppConfig.blunderThreshold) {
       return MoveClassification.blunder;
@@ -282,27 +303,31 @@ class AnalysisManager extends ChangeNotifier {
     return MoveClassification.good;
   }
 
-  // ── Accuracy (win-% harmonic model) ───────────────────────
-  double _calcAccuracy(List<MoveAnalysis> moves) {
-    if (moves.isEmpty) return 100;
-    double total = 0;
+  // ── Accuracy (Lichess standard win-% model) ─────────────────
+  /// Uses Lichess win-percentage sigmoid and standard accuracy formula:
+  ///   acc = 103.1668 * exp(-0.04354 * winDiff) - 3.1669, clamped to [0, 100].
+  /// Aggregated per side using arithmetic mean.
+  static double calcAccuracy(List<MoveAnalysis> moves) {
+    if (moves.isEmpty) return 100.0;
+    double total = 0.0;
     for (final m in moves) {
-      final winBefore = _winPercent(m.evalBefore, m.isWhite);
-      final winAfter = _winPercent(m.evalAfter, m.isWhite);
-      total += _moveAccuracy(winBefore, winAfter);
+      final moverCpBefore = m.isWhite ? m.evalBefore : -m.evalBefore;
+      final moverCpAfter = m.isWhite ? m.evalAfter : -m.evalAfter;
+      final winBefore = winPercent(moverCpBefore);
+      final winAfter = winPercent(moverCpAfter);
+      total += moveAccuracy(winBefore, winAfter);
     }
-    return total / moves.length;
+    return (total / moves.length).clamp(0.0, 100.0);
   }
 
-  double _winPercent(double cpWhite, bool isWhite) {
-    final cp = isWhite ? cpWhite : -cpWhite;
-    return 50 + 50 * (2 / (1 + math.exp(-0.00368208 * cp)) - 1);
+  static double winPercent(double cpMover) {
+    return 50.0 + 50.0 * (2.0 / (1.0 + math.exp(-0.00368208 * cpMover)) - 1.0);
   }
 
-  double _moveAccuracy(double winBefore, double winAfter) {
-    if (winBefore <= winAfter) return 100;
-    final ratio = winAfter / winBefore;
-    return (ratio * 100).clamp(0, 100);
+  static double moveAccuracy(double winBefore, double winAfter) {
+    final winDiff = math.max(0.0, winBefore - winAfter);
+    final acc = 103.1668 * math.exp(-0.04354 * winDiff) - 3.1669;
+    return acc.clamp(0.0, 100.0);
   }
 
   Map<MoveClassification, int> _countClassifications(
@@ -322,11 +347,4 @@ class AnalysisManager extends ChangeNotifier {
     _analyzing = false;
     notifyListeners();
   }
-}
-
-class _EvalData {
-  final double score;
-  final bool isMate;
-  final int? mateIn;
-  _EvalData({required this.score, required this.isMate, this.mateIn});
 }

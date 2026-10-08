@@ -25,7 +25,7 @@ class PositionManager {
     return _chess.move({
       'from': from,
       'to': to,
-      if (promotion != null) 'promotion': promotion,
+      'promotion': ?promotion,
     });
   }
 
@@ -43,12 +43,24 @@ class PositionManager {
     final moveObj = _chess.move({
       'from': from,
       'to': to,
-      if (promotion != null) 'promotion': promotion,
+      'promotion': ?promotion,
     });
     if (moveObj == false) return null;
     final san = _chess.san_moves().last;
     _chess.undo();
     return san;
+  }
+
+  /// Convert a SAN move (e.g. "Nf3") to UCI (e.g. "g1f3") in the current position.
+  String? sanToUci(String san) {
+    final moveObj = _chess.move(san);
+    if (moveObj == false) return null;
+    final undoMap = _chess.undo();
+    if (undoMap == null) return null;
+    final from = undoMap['from'] ?? '';
+    final to = undoMap['to'] ?? '';
+    final promo = undoMap['promotion'] != null ? undoMap['promotion'].toString().toLowerCase() : '';
+    return '$from$to$promo';
   }
 
   /// Whether it is White's turn.
