@@ -54,6 +54,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 16),
               _buildEngineSettings(),
               const SizedBox(height: 48),
+
+              _buildSectionTitle('About & Legal'),
+              const SizedBox(height: 16),
+              _buildAboutSection(),
+              const SizedBox(height: 48),
             ],
           ),
         ),
@@ -406,6 +411,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildAboutSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceLight,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.surfaceBorder),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          leading: const Icon(Icons.info_outline_rounded, color: AppTheme.primaryLight),
+          title: const Text('Open Source Licenses'),
+          subtitle: const Text('ChessLens, Stockfish (GPL-3.0), and libraries'),
+          trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+          onTap: () {
+            showLicensePage(
+              context: context,
+              applicationName: 'ChessLens',
+              applicationVersion: '0.1.0',
+              applicationLegalese:
+                  'Copyright (c) 2024-2026 ChessLens Contributors.\nDistributed under the GNU General Public License v3.0 (GPL-3.0).\nBundles Stockfish chess engine under GPL-3.0.',
+            );
+          },
+        ),
+      ),
     );
   }
 }

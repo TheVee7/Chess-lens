@@ -1,5 +1,7 @@
 name: chess_lens
-description: "A new Flutter project."
+description: "Offline chess review app with local Stockfish FFI analysis and Gemini AI coach explanations."
+homepage: "https://github.com/TheVee7/Chess-lens"
+repository: "https://github.com/TheVee7/Chess-lens"
 publish_to: 'none'
 version: 0.1.0+1
 
