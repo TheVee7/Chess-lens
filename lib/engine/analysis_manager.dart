@@ -7,6 +7,7 @@ import '../models/move_analysis.dart';
 import '../models/game_analysis.dart';
 import '../core/config/app_config.dart';
 import 'stockfish_controller.dart';
+import 'uci_parser.dart';
 
 /// Orchestrates Stockfish analysis of every position in a game.
 class AnalysisManager extends ChangeNotifier {
@@ -41,6 +42,7 @@ class AnalysisManager extends ChangeNotifier {
 
   /// Analyze the full game. Notifies listeners with progress.
   Future<GameAnalysis?> analyzeGame(ChessGame game) async {
+    if (_analyzing) return _result;
     _analyzing = true;
     _cancelled = false;
     _error = null;
@@ -49,36 +51,53 @@ class AnalysisManager extends ChangeNotifier {
     _currentPly = 0;
     notifyListeners();
 
+    if (game.moves.isEmpty) {
+      _analyzing = false;
+      _result = const GameAnalysis(
+        moves: [],
+        whiteAccuracy: 100,
+        blackAccuracy: 100,
+        whiteClassifications: {},
+        blackClassifications: {},
+      );
+      notifyListeners();
+      return _result;
+    }
+
     try {
       await _engine.init();
+      if (_cancelled) return null;
+
+      // Send ucinewgame once per game to prepare engine hash
+      await _engine.newGame();
+      if (_cancelled) return null;
+
+      final startFen = game.headers['FEN'] ??
+          'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      final fens = <String>[startFen, ...game.moves.map((m) => m.fen!)];
+      final positionResults = List<AnalysisResult?>.filled(fens.length, null);
+
+      // Analyze start position (ply 0)
+      positionResults[0] = await _analyzePosition(fens[0]);
+      if (_cancelled) return null;
 
       final analyses = <MoveAnalysis>[];
-      AnalysisResult? previousResult;
-
-      String previousFen =
-          'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
       for (int i = 0; i < game.moves.length; i++) {
         if (_cancelled) break;
-        
-        final move = game.moves[i];
-        final fenBefore = previousFen;
-        final fenAfter = move.fen!;
-        final isWhite = move.isWhite;
-
-        // Analyze the position BEFORE the move, or reuse previous.
-        AnalysisResult resultBefore;
-        if (previousResult != null) {
-          resultBefore = previousResult;
-        } else {
-          resultBefore = await _engine.analyze(
-            fen: fenBefore,
-            depth: _depth,
-            multiPv: _multiPv,
-          );
-        }
-
+        await Future.delayed(Duration.zero); // yield for UI responsiveness
         if (_cancelled) break;
+
+        // Position after move i is analyzed once
+        positionResults[i + 1] = await _analyzePosition(fens[i + 1]);
+        if (_cancelled) break;
+
+        final move = game.moves[i];
+        final fenBefore = fens[i];
+        final fenAfter = fens[i + 1];
+        final isWhite = move.isWhite;
+        final resultBefore = positionResults[i]!;
+        final resultAfter = positionResults[i + 1]!;
 
         // Eval before (normalised to White's perspective)
         final evalBeforeData = _scoreToWhitePerspective(resultBefore, isWhite);
@@ -86,16 +105,7 @@ class AnalysisManager extends ChangeNotifier {
         final isMateBefore = evalBeforeData.isMate;
         final mateBefore = evalBeforeData.mateIn;
 
-        // Analyze the position AFTER the move with multiPv for classification and reuse.
-        final resultAfterFull = await _engine.analyze(
-          fen: fenAfter,
-          depth: _depth,
-          multiPv: _multiPv,
-        );
-
-        if (_cancelled) break;
-
-        final evalAfterData = _scoreToWhitePerspective(resultAfterFull, !isWhite);
+        final evalAfterData = _scoreToWhitePerspective(resultAfter, !isWhite);
         final evalAfter = evalAfterData.score;
         final isMateAfter = evalAfterData.isMate;
         final mateAfter = evalAfterData.mateIn;
@@ -154,8 +164,6 @@ class AnalysisManager extends ChangeNotifier {
           classification: classification,
         ));
 
-        previousFen = fenAfter;
-        previousResult = resultAfterFull; // Reuse!
         _currentPly = i + 1;
         notifyListeners();
       }
@@ -187,6 +195,48 @@ class AnalysisManager extends ChangeNotifier {
     } finally {
       _engine.dispose();
     }
+  }
+
+  AnalysisResult _terminalResult(PositionManager pm) {
+    if (pm.isCheckmate) {
+      return const AnalysisResult(
+        bestMove: '',
+        lines: [
+          UciInfo(
+            depth: 0,
+            score: -10000,
+            mate: 0,
+            multiPv: 1,
+          ),
+        ],
+      );
+    } else {
+      return const AnalysisResult(
+        bestMove: '',
+        lines: [
+          UciInfo(
+            depth: 0,
+            score: 0,
+            mate: null,
+            multiPv: 1,
+          ),
+        ],
+      );
+    }
+  }
+
+  Future<AnalysisResult> _analyzePosition(String fen) async {
+    _positionManager.load(fen);
+    if (_positionManager.isCheckmate ||
+        _positionManager.isStalemate ||
+        _positionManager.isGameOver) {
+      return _terminalResult(_positionManager);
+    }
+    return await _engine.analyze(
+      fen: fen,
+      depth: _depth,
+      multiPv: _multiPv,
+    );
   }
 
   _EvalData _scoreToWhitePerspective(AnalysisResult result, bool isWhiteToMove) {

@@ -38,11 +38,23 @@ class StockfishController {
   Completer<AnalysisResult>? _analysisCompleter;
 
   bool _cancelled = false;
+  int? _currentMultiPv;
 
   final Map<int, UciInfo> _currentInfoLines = {};
   String? _currentBestMove;
 
   bool get isReady => _ready && _stockfish?.state.value == StockfishState.ready;
+
+  /// Send ucinewgame once and await readyok to reset hash once per game.
+  Future<void> newGame() async {
+    if (_stockfish == null || !_ready) return;
+    _sendStdin('ucinewgame');
+    _readyOkCompleter = Completer<void>();
+    _sendStdin('isready');
+    try {
+      await _readyOkCompleter!.future.timeout(const Duration(seconds: 5), onTimeout: () {});
+    } catch (_) {}
+  }
 
   /// Initialize the Stockfish process.
   Future<void> init() async {
@@ -186,7 +198,10 @@ class StockfishController {
       return const AnalysisResult(bestMove: '', lines: []);
     }
 
-    _sendStdin('setoption name MultiPV value $multiPv');
+    if (_currentMultiPv != multiPv) {
+      _sendStdin('setoption name MultiPV value $multiPv');
+      _currentMultiPv = multiPv;
+    }
     _sendStdin('position fen $fen');
 
     _analysisCompleter = Completer<AnalysisResult>();
