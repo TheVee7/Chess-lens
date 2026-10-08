@@ -136,12 +136,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           : () async {
                               final key = _keyController.text.trim();
                               if (key.isNotEmpty) {
+                                final messenger = ScaffoldMessenger.of(context);
                                 final valid = await keyMgr.save(key);
                                 if (!mounted) return;
                                 if (valid) {
                                   setState(() => _isEditingKey = false);
                                   _keyController.clear();
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  messenger.showSnackBar(
                                     const SnackBar(
                                       content: Text('Gemini API Key verified and saved!'),
                                       backgroundColor: AppTheme.accent,
@@ -179,7 +180,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             border: Border.all(
               color: hasError
-                  ? AppTheme.error.withOpacity(0.5)
+                  ? AppTheme.error.withValues(alpha: 0.5)
                   : AppTheme.surfaceBorder,
             ),
           ),
@@ -254,9 +255,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onPressed: keyMgr.isValidating
                         ? null
                         : () async {
+                            final messenger = ScaffoldMessenger.of(context);
                             final success = await keyMgr.validateKey();
                             if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(
                                 content: Text(
                                   success
@@ -295,9 +297,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.primary.withOpacity(0.05),
+        color: AppTheme.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.primary.withOpacity(0.15)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

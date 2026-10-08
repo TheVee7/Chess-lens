@@ -6,7 +6,7 @@ class AppConfig {
   AppConfig._();
 
   // ── Gemini ──────────────────────────────────────────────────────
-  static const String geminiModel = 'gemini-3.8-flash';
+  static const String geminiModel = 'gemini-2.0-flash';
   static const String geminiBaseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models';
 

@@ -9,6 +9,7 @@ class CoachReviewWidget extends StatelessWidget {
   final ExplanationStatus status;
   final MoveExplanation? explanation;
   final String? errorMessage;
+  final bool canRetry;
   final VoidCallback? onRetry;
 
   const CoachReviewWidget({
@@ -17,6 +18,7 @@ class CoachReviewWidget extends StatelessWidget {
     required this.status,
     this.explanation,
     this.errorMessage,
+    this.canRetry = true,
     this.onRetry,
   });
 
@@ -27,7 +29,7 @@ class CoachReviewWidget extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppTheme.primary.withOpacity(0.08),
+            AppTheme.primary.withValues(alpha: 0.08),
             AppTheme.surfaceLight,
           ],
           begin: Alignment.topLeft,
@@ -35,7 +37,7 @@ class CoachReviewWidget extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(
-          color: AppTheme.primary.withOpacity(0.2),
+          color: AppTheme.primary.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -127,10 +129,10 @@ class CoachReviewWidget extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.accent.withOpacity(0.08),
+                  color: AppTheme.accent.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: AppTheme.accent.withOpacity(0.2),
+                    color: AppTheme.accent.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Row(
@@ -158,10 +160,10 @@ class CoachReviewWidget extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.warning.withOpacity(0.08),
+                  color: AppTheme.warning.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: AppTheme.warning.withOpacity(0.2),
+                    color: AppTheme.warning.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Row(
@@ -204,7 +206,7 @@ class CoachReviewWidget extends StatelessWidget {
                 fontSize: 12,
               ),
             ),
-            if (onRetry != null) ...[
+            if (canRetry && onRetry != null) ...[
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: onRetry,

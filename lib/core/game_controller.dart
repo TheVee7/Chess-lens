@@ -40,10 +40,12 @@ class GameController extends ChangeNotifier {
   // ── Gemini explanations ─────────────────────────────────────
   final Map<int, MoveExplanation> _explanations = {};
   final Map<int, ExplanationStatus> _explanationStatus = {};
+  final Map<int, String> _moveErrors = {};
   GameReview? _gameReview;
 
   Map<int, MoveExplanation> get explanations => _explanations;
   Map<int, ExplanationStatus> get explanationStatus => _explanationStatus;
+  Map<int, String> get moveErrors => _moveErrors;
   GameReview? get gameReview => _gameReview;
 
   bool _geminiRunning = false;
@@ -52,6 +54,9 @@ class GameController extends ChangeNotifier {
   String? _geminiError;
   String? get geminiError => _geminiError;
 
+  bool _isInvalidKey = false;
+  bool get isInvalidKey => _isInvalidKey;
+
   // ── Load a game ─────────────────────────────────────────────
 
   void loadGame(ChessGame game) {
@@ -59,6 +64,8 @@ class GameController extends ChangeNotifier {
     _currentPlyIndex = -1;
     _explanations.clear();
     _explanationStatus.clear();
+    _moveErrors.clear();
+    _isInvalidKey = false;
     _gameReview = null;
     notifyListeners();
   }
@@ -125,42 +132,67 @@ class GameController extends ChangeNotifier {
   /// Run Gemini explanations progressively for important moves.
   Future<void> startGeminiAnalysis(String apiKey) async {
     if (analysis == null) return;
+    if (_geminiRunning) return; // Guard against concurrent runs
 
     _geminiRunning = true;
     _geminiError = null;
+    _isInvalidKey = false;
     notifyListeners();
 
     final gemini = GeminiService(apiKey: apiKey);
-    final importantMoves = analysis!.criticalMoments;
 
-    // Mark all as waiting.
+    // Cap total requests (top 15 most critical moves by evalLoss) to protect quotas
+    final criticalMoves = List<MoveAnalysis>.from(analysis!.criticalMoments)
+      ..sort((a, b) => b.evalLoss.compareTo(a.evalLoss));
+    final importantMoves = criticalMoves.take(15).toList()
+      ..sort((a, b) => a.plyIndex.compareTo(b.plyIndex));
+
+    // Mark all as waiting
     for (final m in importantMoves) {
       _explanationStatus[m.plyIndex] = ExplanationStatus.waiting;
+      _moveErrors.remove(m.plyIndex);
     }
     notifyListeners();
 
-    // Process one by one (progressive).
+    // Process sequentially with short pacing delays
     for (final m in importantMoves) {
+      if (!_geminiRunning) break;
+
       _explanationStatus[m.plyIndex] = ExplanationStatus.generating;
       notifyListeners();
 
-      final explanation = await gemini.explainMove(m);
-      if (explanation != null) {
-        _explanations[m.plyIndex] = explanation;
-        _explanationStatus[m.plyIndex] = ExplanationStatus.done;
-      } else {
-        _explanationStatus[m.plyIndex] = ExplanationStatus.failed;
-        if (gemini.lastError != null) {
-          _geminiError = gemini.lastError;
-        }
+      final result = await gemini.explainMoveResult(m);
+      switch (result) {
+        case Success<MoveExplanation>(:final data):
+          _explanations[m.plyIndex] = data;
+          _explanationStatus[m.plyIndex] = ExplanationStatus.done;
+          _moveErrors.remove(m.plyIndex);
+        case Failure<MoveExplanation>(:final error):
+          _explanationStatus[m.plyIndex] = ExplanationStatus.failed;
+          _moveErrors[m.plyIndex] = error.description;
+          _geminiError = error.description;
+          if (error.type == GeminiErrorType.invalidKey) {
+            _isInvalidKey = true;
+            // Abort remaining moves immediately on invalid key
+            _geminiRunning = false;
+            notifyListeners();
+            return;
+          }
       }
       notifyListeners();
+
+      // Pace calls to protect free-tier rate limits
+      await Future.delayed(const Duration(milliseconds: 350));
     }
 
-    // Overall review.
-    _gameReview = await gemini.reviewGame(importantMoves);
-    if (_gameReview == null && gemini.lastError != null) {
-      _geminiError = gemini.lastError;
+    if (_geminiRunning && !_isInvalidKey) {
+      final reviewResult = await gemini.reviewGameResult(importantMoves);
+      switch (reviewResult) {
+        case Success<GameReview>(:final data):
+          _gameReview = data;
+        case Failure<GameReview>(:final error):
+          _geminiError = error.description;
+      }
     }
 
     _geminiRunning = false;
@@ -169,19 +201,24 @@ class GameController extends ChangeNotifier {
 
   /// Retry a single failed explanation.
   Future<void> retryExplanation(String apiKey, MoveAnalysis move) async {
+    if (_isInvalidKey) return;
     final gemini = GeminiService(apiKey: apiKey);
     _explanationStatus[move.plyIndex] = ExplanationStatus.generating;
     notifyListeners();
 
-    final explanation = await gemini.explainMove(move);
-    if (explanation != null) {
-      _explanations[move.plyIndex] = explanation;
-      _explanationStatus[move.plyIndex] = ExplanationStatus.done;
-    } else {
-      _explanationStatus[move.plyIndex] = ExplanationStatus.failed;
-      if (gemini.lastError != null) {
-        _geminiError = gemini.lastError;
-      }
+    final result = await gemini.explainMoveResult(move);
+    switch (result) {
+      case Success<MoveExplanation>(:final data):
+        _explanations[move.plyIndex] = data;
+        _explanationStatus[move.plyIndex] = ExplanationStatus.done;
+        _moveErrors.remove(move.plyIndex);
+      case Failure<MoveExplanation>(:final error):
+        _explanationStatus[move.plyIndex] = ExplanationStatus.failed;
+        _moveErrors[move.plyIndex] = error.description;
+        _geminiError = error.description;
+        if (error.type == GeminiErrorType.invalidKey) {
+          _isInvalidKey = true;
+        }
     }
     notifyListeners();
   }

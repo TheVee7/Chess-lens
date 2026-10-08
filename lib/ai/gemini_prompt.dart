@@ -17,8 +17,17 @@ Rules:
 - Do not use chess notation jargon without explaining it.
 ''';
 
+  static String _sanitize(String s) {
+    return s.replaceAll(r'\', r'\\').replaceAll('"', r'\"').replaceAll('\n', ' ');
+  }
+
   /// Prompt for a single move explanation.
   static String moveExplanation(MoveAnalysis move) {
+    final cleanSan = _sanitize(move.san);
+    final cleanBestMove = _sanitize(move.bestMoveSan ?? 'N/A');
+    final cleanFen = _sanitize(move.fenBefore);
+    final cleanPv = move.pv.map((m) => '"${_sanitize(m)}"').toList();
+
     return '''
 Analyse this chess move and respond in JSON.
 
@@ -26,14 +35,14 @@ Position data:
 {
   "move_number": ${move.moveNumber},
   "side": "${move.isWhite ? 'White' : 'Black'}",
-  "played_move": "${move.san}",
-  "best_move": "${move.bestMoveSan ?? 'N/A'}",
+  "played_move": "$cleanSan",
+  "best_move": "$cleanBestMove",
   "classification": "${move.classification.name}",
   "evaluation_before": ${(move.evalBefore / 100).toStringAsFixed(2)},
   "evaluation_after": ${(move.evalAfter / 100).toStringAsFixed(2)},
   "evaluation_loss": ${(move.evalLoss / 100).toStringAsFixed(2)},
-  "principal_variation": ${move.pv.map((s) => '"$s"').toList()},
-  "fen": "${move.fenBefore}"
+  "principal_variation": $cleanPv,
+  "fen": "$cleanFen"
 }
 
 Respond with ONLY this JSON (no markdown, no code fences):
@@ -52,7 +61,8 @@ Respond with ONLY this JSON (no markdown, no code fences):
     final moveSummaries = importantMoves.isEmpty
         ? 'No major blunders or mistakes detected in this game. Solid overall play.'
         : importantMoves.map((m) {
-            return '  Move ${m.moveNumber}${m.isWhite ? '' : '...'}${m.san} '
+            final cleanSan = _sanitize(m.san);
+            return '  Move ${m.moveNumber}${m.isWhite ? '' : '...'}$cleanSan '
                 '(${m.classification.name}, loss: ${(m.evalLoss / 100).toStringAsFixed(1)})';
           }).join('\n');
 

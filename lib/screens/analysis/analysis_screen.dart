@@ -180,7 +180,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               ExplanationStatus.waiting,
                           explanation:
                               controller.explanations[currentMove.plyIndex],
-                          errorMessage: controller.geminiError,
+                          errorMessage: controller
+                                  .moveErrors[currentMove.plyIndex] ??
+                              controller.geminiError,
+                          canRetry: !controller.isInvalidKey,
                           onRetry: () {
                             if (keyMgr.hasKey) {
                               controller.retryExplanation(
