@@ -23,6 +23,8 @@ dependencies:
   receive_sharing_intent: ^1.9.0
   path_provider: ^2.1.6
   flutter_secure_storage: ^11.2.0
+  chessground: ^10.3.0
+  dartchess: ^0.14.0
 
 dev_dependencies:
   flutter_test:
@@ -35,5 +37,5 @@ flutter:
 
 flutter_launcher_icons:
   android: "launcher_icon"
-  image_path: "assets/icon.jpg"
+  image_path: "assets/icon.png"
   min_sdk_android: 21

@@ -202,6 +202,7 @@ flutter analyze
 ## Credits & Licenses
 
 - **Stockfish Engine**: [Stockfish Team](https://stockfishchess.org) (Licensed under [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.html))
+- **Chessboard & Pieces**: [flutter-chessground](https://github.com/lichess-org/flutter-chessground) (GPL-3.0) with classic piece set by Colin M.L. Burnett (CC BY-SA 3.0 / GPL)
 - **Chess Logic**: [`chess`](https://pub.dev/packages/chess) package
 - **Typography**: [Google Fonts (Inter, JetBrains Mono)](https://fonts.google.com)
 - **AI Explanations**: [Google Gemini API](https://ai.google.dev)

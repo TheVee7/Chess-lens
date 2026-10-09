@@ -45,3 +45,12 @@ ChessLens integrates or links with the following third-party libraries and softw
 - **share_plus**: BSD 3-Clause License (Copyright The Chromium Authors)
 - **path_provider**: BSD 3-Clause License (Copyright The Flutter Authors)
 - **receive_sharing_intent**: MIT License (Copyright Kasem Mohamed)
+
+---
+
+### 6. flutter-chessground & Piece Sets
+- **Source**: https://github.com/lichess-org/flutter-chessground
+- **License**: GNU General Public License v3.0 (GPL-3.0)
+- **Copyright**: Copyright (c) Lichess mobile developers / lichess.org
+- **Bundled Piece Set ("cburnett")**: Designed by Colin M.L. Burnett. Licensed under Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0) and GNU General Public License (GPL).
+

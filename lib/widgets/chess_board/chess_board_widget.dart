@@ -1,9 +1,10 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:chess/chess.dart' as chess_lib;
+import 'package:chessground/chessground.dart';
+import 'package:dartchess/dartchess.dart';
 import '../../core/theme/app_theme.dart';
 
-/// A fully rendered chessboard with pieces, highlighting, and best-move arrow.
+/// A rendered chessboard using chessground with pieces, highlighting, and best-move arrow.
 class ChessBoardWidget extends StatelessWidget {
   final String fen;
   final bool flipped;
@@ -12,6 +13,30 @@ class ChessBoardWidget extends StatelessWidget {
   final String? bestMoveFrom;
   final String? bestMoveTo;
   final bool showBestMoveArrow;
+
+  static const ChessboardColorScheme _boardColorScheme = ChessboardColorScheme(
+    lightSquare: AppTheme.boardLight,
+    darkSquare: AppTheme.boardDark,
+    background: SolidColorChessboardBackground(
+      lightSquare: AppTheme.boardLight,
+      darkSquare: AppTheme.boardDark,
+    ),
+    whiteCoordBackground: SolidColorChessboardBackground(
+      lightSquare: AppTheme.boardLight,
+      darkSquare: AppTheme.boardDark,
+      coordinates: true,
+    ),
+    blackCoordBackground: SolidColorChessboardBackground(
+      lightSquare: AppTheme.boardLight,
+      darkSquare: AppTheme.boardDark,
+      coordinates: true,
+      orientation: Side.black,
+    ),
+    lastMove: HighlightDetails(solidColor: AppTheme.boardHighlight),
+    selected: HighlightDetails(solidColor: Color(0x6014551e)),
+    validMoves: Color(0x4014551e),
+    validPremoves: Color(0x40203085),
+  );
 
   const ChessBoardWidget({
     super.key,
@@ -26,208 +51,64 @@ class ChessBoardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          boxShadow: AppTheme.cardShadow,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return CustomPaint(
-                size: Size(constraints.maxWidth, constraints.maxWidth),
-                painter: _BoardPainter(
-                  fen: fen,
-                  flipped: flipped,
-                  lastMoveFrom: lastMoveFrom,
-                  lastMoveTo: lastMoveTo,
-                  bestMoveFrom: bestMoveFrom,
-                  bestMoveTo: bestMoveTo,
-                  showBestMoveArrow: showBestMoveArrow,
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BoardPainter extends CustomPainter {
-  final String fen;
-  final bool flipped;
-  final String? lastMoveFrom;
-  final String? lastMoveTo;
-  final String? bestMoveFrom;
-  final String? bestMoveTo;
-  final bool showBestMoveArrow;
-
-  _BoardPainter({
-    required this.fen,
-    required this.flipped,
-    this.lastMoveFrom,
-    this.lastMoveTo,
-    this.bestMoveFrom,
-    this.bestMoveTo,
-    this.showBestMoveArrow = false,
-  });
-
-  static const _files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-  static const _ranks = ['1', '2', '3', '4', '5', '6', '7', '8'];
-
-  static const Map<String, String> _pieceUnicode = {
-    'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
-    'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟',
-  };
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final board = chess_lib.Chess();
-    board.load(fen);
-
-    final sqSize = size.width / 8;
-    final lightPaint = Paint()..color = AppTheme.boardLight;
-    final darkPaint = Paint()..color = AppTheme.boardDark;
-    final highlightPaint = Paint()..color = AppTheme.boardHighlight;
-
-    for (int row = 0; row < 8; row++) {
-      for (int col = 0; col < 8; col++) {
-        final isLight = (row + col) % 2 == 0;
-        final rect = Rect.fromLTWH(
-          col * sqSize, row * sqSize, sqSize, sqSize,
-        );
-        canvas.drawRect(rect, isLight ? lightPaint : darkPaint);
-
-        final file = flipped ? 7 - col : col;
-        final rank = flipped ? row : 7 - row;
-        final sq = '${_files[file]}${_ranks[rank]}';
-
-        // Highlight last move squares.
-        if (sq == lastMoveFrom || sq == lastMoveTo) {
-          canvas.drawRect(rect, highlightPaint);
-        }
-
-        // Draw piece.
-        final piece = board.get(sq);
-        if (piece != null) {
-          final cPrefix =
-              piece.color == chess_lib.Color.WHITE ? 'w' : 'b';
-          final tChar = piece.type.toString().toUpperCase();
-          final unicode = _pieceUnicode['$cPrefix$tChar'];
-          if (unicode != null) {
-            final tp = TextPainter(
-              text: TextSpan(
-                text: unicode,
-                style: TextStyle(
-                  fontSize: sqSize * 0.78,
-                  height: 1.0,
-                  color: piece.color == chess_lib.Color.WHITE
-                      ? const Color(0xFFFFF8E7)
-                      : const Color(0xFF1A1D27),
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      blurRadius: 3,
-                      offset: const Offset(1, 1),
-                    ),
-                  ],
-                ),
-              ),
-              textDirection: TextDirection.ltr,
-            );
-            tp.layout();
-            tp.paint(
-              canvas,
-              Offset(
-                rect.left + (sqSize - tp.width) / 2,
-                rect.top + (sqSize - tp.height) / 2,
-              ),
-            );
-          }
-        }
-
-        // File / rank labels.
-        if (rank == (flipped ? 7 : 0)) {
-          _drawLabel(canvas, _files[file], rect.left + 2, rect.bottom - 12,
-              sqSize * 0.15, isLight ? AppTheme.boardDark : AppTheme.boardLight);
-        }
-        if (col == (flipped ? 7 : 0)) {
-          _drawLabel(canvas, _ranks[rank], rect.left + 2, rect.top + 2,
-              sqSize * 0.15, isLight ? AppTheme.boardDark : AppTheme.boardLight);
-        }
+    Move? lastMove;
+    if (lastMoveFrom != null && lastMoveTo != null) {
+      final from = Square.parse(lastMoveFrom!);
+      final to = Square.parse(lastMoveTo!);
+      if (from != null && to != null) {
+        lastMove = NormalMove(from: from, to: to);
       }
     }
 
-    // Best-move arrow.
+    final shapes = <Shape>{};
     if (showBestMoveArrow && bestMoveFrom != null && bestMoveTo != null) {
-      _drawArrow(canvas, sqSize, bestMoveFrom!, bestMoveTo!);
+      final from = Square.parse(bestMoveFrom!);
+      final to = Square.parse(bestMoveTo!);
+      if (from != null && to != null && from != to) {
+        shapes.add(
+          Arrow(
+            color: AppTheme.bestMoveArrow,
+            orig: from,
+            dest: to,
+            scale: 0.85,
+          ),
+        );
+      }
     }
-  }
 
-  void _drawLabel(Canvas c, String text, double x, double y, double fontSize, Color color) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(fontSize: fontSize, color: color, fontWeight: FontWeight.w600),
+    return AspectRatio(
+      aspectRatio: 1,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final boardSize = constraints.maxWidth.isFinite
+              ? (constraints.maxHeight.isFinite
+                  ? math.min(constraints.maxWidth, constraints.maxHeight)
+                  : constraints.maxWidth)
+              : 300.0;
+
+          return Center(
+            child: SizedBox(
+              width: boardSize,
+              height: boardSize,
+              child: StaticChessboard(
+                size: boardSize,
+                orientation: flipped ? Side.black : Side.white,
+                fen: fen,
+                lastMove: lastMove,
+                shapes: shapes,
+                settings: StaticChessboardSettings(
+                  colorScheme: _boardColorScheme,
+                  pieceAssets: PieceSet.cburnettAssets,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  boxShadow: AppTheme.cardShadow,
+                  enableCoordinates: true,
+                  showLastMove: true,
+                ),
+              ),
+            ),
+          );
+        },
       ),
-      textDirection: TextDirection.ltr,
     );
-    tp.layout();
-    tp.paint(c, Offset(x, y));
   }
-
-  void _drawArrow(Canvas canvas, double sqSize, String from, String to) {
-    final fc = _files.indexOf(from[0]);
-    final fr = _ranks.indexOf(from[1]);
-    final tc = _files.indexOf(to[0]);
-    final tr = _ranks.indexOf(to[1]);
-    if (fc < 0 || fr < 0 || tc < 0 || tr < 0) return;
-
-    final fx = (flipped ? 7 - fc : fc) * sqSize + sqSize / 2;
-    final fy = (flipped ? fr : 7 - fr) * sqSize + sqSize / 2;
-    final tx = (flipped ? 7 - tc : tc) * sqSize + sqSize / 2;
-    final ty = (flipped ? tr : 7 - tr) * sqSize + sqSize / 2;
-
-    final linePaint = Paint()
-      ..color = AppTheme.bestMoveArrow
-      ..strokeWidth = sqSize * 0.12
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawLine(Offset(fx, fy), Offset(tx, ty), linePaint);
-
-    // Arrowhead.
-    final angle = math.atan2(ty - fy, tx - fx);
-    final headLen = sqSize * 0.35;
-    final spread = 0.45;
-    final arrowPaint = Paint()
-      ..color = AppTheme.bestMoveArrow
-      ..style = PaintingStyle.fill;
-    final path = Path()
-      ..moveTo(tx, ty)
-      ..lineTo(
-        tx - headLen * math.cos(angle - spread),
-        ty - headLen * math.sin(angle - spread),
-      )
-      ..lineTo(
-        tx - headLen * math.cos(angle + spread),
-        ty - headLen * math.sin(angle + spread),
-      )
-      ..close();
-    canvas.drawPath(path, arrowPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _BoardPainter old) =>
-      old.fen != fen ||
-      old.flipped != flipped ||
-      old.lastMoveFrom != lastMoveFrom ||
-      old.lastMoveTo != lastMoveTo ||
-      old.bestMoveFrom != bestMoveFrom ||
-      old.bestMoveTo != bestMoveTo ||
-      old.showBestMoveArrow != showBestMoveArrow;
 }

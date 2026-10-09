@@ -57,6 +57,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.8.1"
+  chessground:
+    dependency: "direct main"
+    description:
+      name: chessground
+      sha256: "26393bc24dcf1af2368b35a9d783142722b153d1ef9a1a348772f433168df01a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "10.3.0"
   cli_util:
     dependency: transitive
     description:
@@ -105,6 +113,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.7"
+  dartchess:
+    dependency: "direct main"
+    description:
+      name: dartchess
+      sha256: "1c5392ff16ec038c66d10b63f09095ac050adcf2d8df368717fb80f785fe3352"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.14.0"
   fake_async:
     dependency: transitive
     description:
