@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 
-/// Navigation controls for stepping through game moves.
+/// Navigation controls for stepping through game moves in the bottom thumb zone.
 class AnalysisControls extends StatelessWidget {
   final VoidCallback? onFirst;
   final VoidCallback? onPrevious;
@@ -10,6 +10,7 @@ class AnalysisControls extends StatelessWidget {
   final VoidCallback? onFlipBoard;
   final VoidCallback? onPreviousCritical;
   final VoidCallback? onNextCritical;
+  final VoidCallback? onDetails;
 
   const AnalysisControls({
     super.key,
@@ -20,100 +21,107 @@ class AnalysisControls extends StatelessWidget {
     this.onFlipBoard,
     this.onPreviousCritical,
     this.onNextCritical,
+    this.onDetails,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: AppTheme.surfaceLight,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.surfaceBorder),
+        boxShadow: AppTheme.cardShadow,
       ),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _ControlButton(
+          _buildItem(
+            flex: 1,
             icon: Icons.skip_previous_rounded,
             onTap: onFirst,
             tooltip: 'First move',
           ),
-          _ControlButton(
-            icon: Icons.chevron_left_rounded,
-            onTap: onPrevious,
-            tooltip: 'Previous',
-            large: true,
-          ),
-          _ControlButton(
+          _buildItem(
+            flex: 1,
             icon: Icons.warning_amber_rounded,
             onTap: onPreviousCritical,
             tooltip: 'Previous mistake',
             color: AppTheme.warning,
           ),
-          _ControlButton(
-            icon: Icons.swap_vert_rounded,
-            onTap: onFlipBoard,
-            tooltip: 'Flip board',
+          _buildItem(
+            flex: 2,
+            icon: Icons.chevron_left_rounded,
+            onTap: onPrevious,
+            tooltip: 'Previous',
+            large: true,
           ),
-          _ControlButton(
-            icon: Icons.warning_amber_rounded,
-            onTap: onNextCritical,
-            tooltip: 'Next mistake',
-            color: AppTheme.warning,
-          ),
-          _ControlButton(
+          _buildItem(
+            flex: 2,
             icon: Icons.chevron_right_rounded,
             onTap: onNext,
             tooltip: 'Next',
             large: true,
           ),
-          _ControlButton(
+          _buildItem(
+            flex: 1,
+            icon: Icons.warning_amber_rounded,
+            onTap: onNextCritical,
+            tooltip: 'Next mistake',
+            color: AppTheme.warning,
+          ),
+          _buildItem(
+            flex: 1,
             icon: Icons.skip_next_rounded,
             onTap: onLast,
             tooltip: 'Last move',
           ),
+          _buildItem(
+            flex: 1,
+            icon: Icons.swap_vert_rounded,
+            onTap: onFlipBoard,
+            tooltip: 'Flip board',
+          ),
+          if (onDetails != null)
+            _buildItem(
+              flex: 1,
+              icon: Icons.tune_rounded,
+              onTap: onDetails,
+              tooltip: 'Details & Analysis',
+              color: AppTheme.primaryLight,
+            ),
         ],
       ),
     );
   }
-}
 
-class _ControlButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-  final String tooltip;
-  final bool large;
-  final Color? color;
-
-  const _ControlButton({
-    required this.icon,
-    this.onTap,
-    required this.tooltip,
-    this.large = false,
-    this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: large ? 6 : 4,
-              vertical: large ? 8 : 6,
-            ),
-            child: Icon(
-              icon,
-              size: large ? 24 : 20,
-              color: onTap != null
-                  ? (color ?? AppTheme.textPrimary)
-                  : AppTheme.textTertiary,
+  Widget _buildItem({
+    required int flex,
+    required IconData icon,
+    VoidCallback? onTap,
+    required String tooltip,
+    bool large = false,
+    Color? color,
+  }) {
+    return Expanded(
+      flex: flex,
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            onTap: onTap,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 48),
+              alignment: Alignment.center,
+              child: Icon(
+                icon,
+                size: large ? 28 : 20,
+                color: onTap != null
+                    ? (color ?? (large ? AppTheme.textPrimary : AppTheme.textSecondary))
+                    : AppTheme.textTertiary.withValues(alpha: 0.4),
+              ),
             ),
           ),
         ),

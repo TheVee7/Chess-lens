@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../models/move_analysis.dart';
 
 /// ChessLens design system – colours, typography, and component themes.
 class AppTheme {
@@ -29,6 +30,84 @@ class AppTheme {
   static const Color inaccuracy      = Color(0xFFF0C15C);
   static const Color mistake         = Color(0xFFE89B3D);
   static const Color blunder         = Color(0xFFD9534F);
+
+  static Color classificationColor(MoveClassification c) {
+    switch (c) {
+      case MoveClassification.blunder:
+        return blunder;
+      case MoveClassification.mistake:
+        return mistake;
+      case MoveClassification.inaccuracy:
+        return inaccuracy;
+      case MoveClassification.best:
+        return bestMove;
+      case MoveClassification.excellent:
+        return excellent;
+      case MoveClassification.good:
+        return good;
+      case MoveClassification.book:
+        return book;
+      case MoveClassification.forced:
+        return textSecondary;
+    }
+  }
+
+  static String classificationLabel(MoveClassification c) {
+    switch (c) {
+      case MoveClassification.best:
+        return 'BEST';
+      case MoveClassification.excellent:
+        return 'EXCELLENT';
+      case MoveClassification.good:
+        return 'GOOD';
+      case MoveClassification.book:
+        return 'BOOK';
+      case MoveClassification.inaccuracy:
+        return 'INACCURACY';
+      case MoveClassification.mistake:
+        return 'MISTAKE';
+      case MoveClassification.blunder:
+        return 'BLUNDER';
+      case MoveClassification.forced:
+        return 'FORCED';
+    }
+  }
+
+  static String? classificationSymbol(MoveClassification c) {
+    switch (c) {
+      case MoveClassification.blunder:
+        return '??';
+      case MoveClassification.mistake:
+        return '?';
+      case MoveClassification.inaccuracy:
+        return '?!';
+      case MoveClassification.best:
+      case MoveClassification.excellent:
+        return '✓';
+      default:
+        return null;
+    }
+  }
+
+  static IconData classificationIcon(MoveClassification c) {
+    switch (c) {
+      case MoveClassification.blunder:
+        return Icons.close_rounded;
+      case MoveClassification.mistake:
+        return Icons.priority_high_rounded;
+      case MoveClassification.inaccuracy:
+        return Icons.help_outline_rounded;
+      case MoveClassification.best:
+      case MoveClassification.excellent:
+        return Icons.check_circle_rounded;
+      case MoveClassification.good:
+        return Icons.check_rounded;
+      case MoveClassification.book:
+        return Icons.menu_book_rounded;
+      case MoveClassification.forced:
+        return Icons.arrow_forward_rounded;
+    }
+  }
 
   // ── Eval bar ──────────────────────────────────────────────────
   static const Color whiteEval = Color(0xFFFFFFFF);
