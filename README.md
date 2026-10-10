@@ -3,212 +3,124 @@
 [![Flutter](https://img.shields.io/badge/Flutter-3.47+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.13+-0175C2?logo=dart&logoColor=white)](https://dart.dev)
 [![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
+[![Engine](https://img.shields.io/badge/Engine-Stockfish-informational)](https://stockfishchess.org)
+[![AI Coach](https://img.shields.io/badge/AI%20Coach-Google%20Gemini-orange)](https://ai.google.dev)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-> **Stockfish analyzes the chess. Gemini explains the chess.**
-
-ChessLens is a modern, privacy-focused Flutter application for Android that delivers master-level game review with human explanations. Paste any chess game PGN, analyze every position locally using Stockfish through native FFI, classify mistakes and blunders using standard evaluation algorithms, and receive plain-English coaching explanations powered by your own Gemini API key—with zero intermediate servers and complete data privacy.
-
----
-
-## Screenshots
-
-| Home & Status | PGN Import | Quick Report |
-| :---: | :---: | :---: |
-| ![Home Screen](docs/screenshots/home.png)<br>_Home screen with API status & instant analysis_ | ![PGN Import](docs/screenshots/import.png)<br>_PGN input with real-time move validation_ | ![Quick Report](docs/screenshots/quick_report.png)<br>_Accuracy scores, classification & eval graph_ |
-
-| Interactive Review | Coach Explanation | Settings |
-| :---: | :---: | :---: |
-| ![Interactive Review](docs/screenshots/review.png)<br>_Board review with eval bar & best-move arrow_ | ![Coach Review](docs/screenshots/coach.png)<br>_Plain-English tactical explanations by Gemini_ | ![Settings](docs/screenshots/settings.png)<br>_Engine depth, MultiPV & encrypted API key_ |
+> **A free, open-source alternative to Chess.com's expensive Game Review.**  
+> Stockfish analyzes your moves. Google Gemini explains them in plain English.
 
 ---
 
-## Features
+## Why ChessLens?
 
-- **Local Stockfish Engine (Offline FFI)**: Evaluates positions directly on-device using a high-performance C++ Stockfish build via native FFI. No internet required for engine analysis.
-- **Move Classification**: Automatically tags every move as **Best**, **Excellent**, **Good**, **Inaccuracy**, **Mistake**, or **Blunder** based on centipawn loss and MultiPV delta.
-- **Lichess-Standard Accuracy Model**: Computes move-by-move and side-wide accuracy using standard win-probability sigmoid functions and exponential decay formulas.
-- **Interactive Evaluation Trajectory**: Smooth, responsive evaluation graph mapping game momentum, critical moments, and selectable ply milestones.
-- **AI Coach Reviews (BYO Key)**: Uses Google Gemini (`gemini-3.8-flash`) to generate concise, human-grade explanations of critical mistakes, why they failed, and what tactical ideas were missed.
-- **Privacy First (No Middleman Server)**: Your Gemini API key is stored strictly on your device using hardware-backed Android KeyStore encryption (`flutter_secure_storage`). Requests travel directly between your phone and Google's official Gemini endpoint.
-- **Responsive Layout**: Designed to adapt gracefully to compact screens (320dp), large devices, tablets, landscape orientations, and high accessibility font scaling (1.5×).
+Chess.com has a popular **Game Review** feature that tells you your accuracy, tags your blunders, and explains your moves. However, full access is locked behind an expensive subscription (Diamond or Platinum membership at $100+/year). Once your single free daily review is used up, you have to pay.
+
+**ChessLens is built to solve that.**
+
+It is a completely free, open-source Android app that gives you unlimited, master-level game review on your phone. No paywalls, no daily limits, no subscriptions, and no middleman servers.
 
 ---
 
-## How It Works
+## What It Does & Key Features
 
-```mermaid
-flowchart LR
-    A[Raw PGN] --> B[PGN Parser]
-    B --> C[Position Manager]
-    C --> D[Stockfish Engine FFI]
-    D --> E[Analysis & Accuracy Math]
-    E --> F[Important Moments Filter]
-    F --> G[Gemini 2.0 Flash REST]
-    G --> H[Interactive Game Review]
-```
-
-1. **Import & Validation**: The PGN parser parses headers, strips extraneous annotations, validates moves sequentially against chess rules, and records position FENs.
-2. **Stockfish Engine Analysis**: `AnalysisManager` optimizes the search pipeline by evaluating each position once across $N + 1$ positions, keeping the engine transposition table active without clearing the hash.
-3. **Move Classification & Accuracy**: Centipawn evaluations are converted to mover perspectives to compute centipawn loss and win-probability shifts.
-4. **AI Coach Generation**: Positions exceeding importance thresholds are sent directly to the Gemini REST API with structured system instructions, generating actionable lessons.
+- **Analyze Any Game**: Paste PGN text or share games directly from Chess.com, Lichess, or anywhere else.
+- **On-Device Stockfish Engine**: Powered by **Stockfish** (the world's strongest chess engine) running directly on your phone using native C++ code. Analysis is lightning-fast and works **100% offline** without needing a remote server.
+- **Move Classifications**: Every single move is tagged just like Chess.com's game review:
+  - **Best** & **Excellent** (optimal moves)
+  - **Good** (solid moves)
+  - **Inaccuracy** (minor positional slips)
+  - **Mistake** (tactical or strategic errors)
+  - **Blunder** (game-changing mistakes)
+- **Accuracy Scores & Evaluation Graph**: See overall game accuracy percentages for both White and Black, along with an interactive momentum graph tracking the advantage across the entire match.
+- **AI Coach (Plain-English Explanations)**: Instead of staring at confusing engine lines like `+3.42 (14... Nxe4 15. Qh5+)`, the AI coach (powered by Google Gemini) tells you *why* your move was bad, what tactic you missed, and what you should have done instead.
+- **100% Free & Private**: No account registration, no telemetry, and no tracking. Everything runs on your device. Your free Gemini API key is stored locally with hardware-backed encryption.
 
 ---
 
-## Architecture & Project Structure
+## How It Works (In Simple Terms)
 
-ChessLens follows a modular, reactive architecture powered by `provider`:
+1. **You paste a game**: ChessLens parses the moves and validates the chess rules.
+2. **Stockfish calculates the numbers**: The engine evaluates every position on your phone to find the best moves and measure advantage shifts.
+3. **Move tagging**: The app compares what you played against what Stockfish recommended, scoring each move from Best to Blunder.
+4. **Gemini explains the chess**: For the critical blunders and mistakes, Google Gemini acts as your personal coach and writes concise, human explanations in plain English.
 
-```text
-lib/
-├── ai/                     # Gemini service, prompts, and secure API key manager
-├── chess/                  # PGN parser and board position manager
-├── core/
-│   ├── config/             # Central AppConfig, settings manager, and constants
-│   ├── game_controller.dart # Central coordination pipeline & UI viewmodel
-│   └── theme/              # Dark mode design system and typography tokens
-├── engine/                 # Stockfish FFI controller, analysis manager, and UCI parser
-├── models/                 # Strongly-typed data models (ChessGame, MoveAnalysis, etc.)
-├── screens/
-│   ├── analysis/           # Interactive board review & landscape split layout
-│   ├── home/               # Launcher dashboard with quick actions
-│   ├── pgn_import/         # Text input and PGN file ingestion
-│   ├── quick_report/       # Accuracy metrics & evaluation graph summary
-│   ├── settings/           # Engine depth, MultiPV, and API key management
-│   └── summary/            # Overall game performance narrative & takeaways
-└── widgets/                # Reusable UI components (chess board, eval bar, move list, graph)
-```
+---
+
+## The Tech Under the Hood
+
+- **Search Engine**: **Stockfish** compiled natively for Android via C++ FFI. It gives you grandmaster-level depth and speed right on your mobile hardware.
+- **AI Coach**: **Google Gemini** API (fast and high-quality tactical summaries).
+- **Chess Board UI**: **flutter-chessground** (the same smooth, performant board technology used by Lichess).
+- **Framework**: Built with **Flutter & Dart** for a modern, responsive mobile experience.
 
 ---
 
 ## Getting Started
 
-### Prerequisites
+### 1. Free AI Coach Setup (Takes 30 seconds)
 
-- **Flutter SDK**: `^3.47.0` (Dart `^3.13.5`)
-- **Android SDK**: API level 21 or higher (Android 5.0+)
-- **Android NDK & CMake**: Required to compile the Stockfish C++ engine plugin under `packages/flutter_stockfish_plugin`.
+The AI coach uses Google's free Gemini API. You don't need a credit card:
 
-### Installation
+1. Grab a free API key at [Google AI Studio](https://aistudio.google.com/apikey).
+2. Open ChessLens on your phone, go to **Settings**, paste your key, and tap **Save & Verify Key**.
+3. You're done! Your key stays saved securely on your phone.
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/TheVee7/Chess-lens.git
-   cd Chess-lens
-   ```
-
-2. Fetch project dependencies:
-   ```bash
-   flutter pub get
-   ```
-
-3. Run on an Android device or emulator:
-   ```bash
-   flutter run
-   ```
-
-4. Build a release APK:
-   ```bash
-   flutter build apk --release
-   ```
+*(Note: Even without a Gemini key, the Stockfish engine, move classifications, accuracy scores, and eval graphs will still work completely offline!)*
 
 ---
 
-## Gemini API Key Setup
+### 2. Building & Running the App
 
-To enable AI Coach explanations, you must provide your own Gemini API key:
+#### Prerequisites
+- [Flutter SDK](https://flutter.dev) (3.47+)
+- Android SDK & NDK (for the local Stockfish engine build)
 
-1. Obtain a free API key from [Google AI Studio](https://aistudio.google.com/apikey).
-2. Need assistance? Watch the [step-by-step setup guide](https://www.youtube.com/watch?v=o8iyrtQyrZM).
-3. Open ChessLens, navigate to **Settings**, paste your key, and tap **Save & Verify Key**.
-
-> **Privacy Notice**: ChessLens has no backend servers, accounts, or telemetry. Your API key is encrypted on your device using Android KeyStore via `flutter_secure_storage`. When AI Coach is active, only move SANs and evaluation metrics are transmitted directly to Google's Gemini API over HTTPS.
-
----
-
-## Move Classification & Accuracy
-
-### Centipawn Loss Thresholds
-
-Move evaluations use centipawn loss from the player's perspective ($\max(0, \text{moverCp}_{\text{before}} - \text{moverCp}_{\text{after}})$):
-
-| Classification | Symbol | Centipawn Loss ($\Delta cp$) | Description |
-| :--- | :---: | :--- | :--- |
-| **Best** | ✓ | $\Delta cp = 0$ (or MultiPV $\le 10$) | Top engine move or within 10 cp of optimal |
-| **Excellent** | ✓ | $0 < \Delta cp \le 10$ | Very strong move maintaining advantage |
-| **Good** | — | $10 < \Delta cp < 50$ | Solid move with minor positional concession |
-| **Inaccuracy** | ?! | $50 \le \Delta cp < 100$ | Suboptimal choice weakening position |
-| **Mistake** | ? | $100 \le \Delta cp < 200$ | Noticeable tactical or strategic blunder |
-| **Blunder** | ?? | $\Delta cp \ge 200$ | Severe error shifting winning chances |
-
-### Accuracy Formula
-
-Move accuracy mirrors the standard Lichess win-percentage formula:
-
-$$\text{win\%} = 50 + 50 \cdot \left( \frac{2}{1 + e^{-0.00368208 \cdot cp}} - 1 \right)$$
-
-$$\text{Accuracy} = \operatorname{clamp}\left(103.1668 \cdot e^{-0.04354 \cdot (\text{win}_{\text{before}} - \text{win}_{\text{after}})} - 3.1669, \, 0, \, 100\right)$$
-
-Game accuracy is aggregated per side using the arithmetic mean of all played moves.
-
----
-
-## Configuration
-
-Settings can be customized directly within `lib/core/config/app_config.dart` or via the in-app Settings screen:
-
-| Setting | Default | Description |
-| :--- | :--- | :--- |
-| **Engine Depth** | `18` | Search depth per ply (10–24) |
-| **MultiPV** | `2` | Number of concurrent principal variations analyzed |
-| **Gemini Model** | `gemini-3.8-flash` | Current high-speed Google Gemini model ID |
-| **Importance Threshold** | `40 cp` | Minimum loss required to trigger an AI coach explanation |
-
----
-
-## Testing & Quality Assurance
-
-Run the test suite:
+#### Run locally:
 ```bash
-flutter test
+git clone https://github.com/TheVee7/Chess-lens.git
+cd Chess-lens
+flutter pub get
+flutter run
 ```
 
-Run static analysis:
+#### Build a Lightweight APK for Your Phone:
+Modern Android phones run on 64-bit ARM (`arm64-v8a`). To produce a lean ~27 MB APK without extra engine binaries for other architectures:
+
 ```bash
-flutter analyze
+flutter build apk --split-per-abi --release
+```
+
+The resulting file will be located at:
+```text
+build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 ```
 
 ---
 
-## Troubleshooting
+## Project Structure
 
-- **No Supported Devices Connected**: ChessLens relies on native Android FFI for Stockfish. It must be run on an Android device or emulator with ABI `arm64-v8a`, `armeabi-v7a`, or `x86_64`.
-- **Engine Fails to Start**: Ensure your device supports the compiled NDK target. Clean build artifacts via `flutter clean && flutter pub get`.
-- **429 Rate Limit Errors**: Free Gemini API tiers impose per-minute request quotas. ChessLens automatically caps explanation queues and performs exponential backoff.
-- **Display Overflow on Custom Fonts**: ChessLens enforces adaptive scrolling and `FittedBox` scale guards to support text scaling up to 1.5×.
-
----
-
-## Roadmap
-
-- [ ] One-tap import from Lichess and Chess.com user profiles
-- [ ] ECO opening book identifier & explorer
-- [ ] Persistent game review history library
-- [ ] Shareable review report cards (PDF & image export)
-- [ ] Alternative board palettes and light mode
+```text
+lib/
+├── ai/          # Gemini AI Coach service and prompt builders
+├── chess/       # PGN parser and board state manager
+├── core/        # App configuration, theme, and game controller
+├── engine/      # Local Stockfish FFI engine and UCI parser
+├── models/      # Game data models (ChessGame, MoveAnalysis, etc.)
+├── screens/     # UI screens (Home, Import, Quick Report, Analysis, Settings)
+└── widgets/     # Reusable UI widgets (Chessboard, Eval Bar, Graph, Move List)
+```
 
 ---
 
-## Credits & Licenses
+## Author & Credits
 
-- **Stockfish Engine**: [Stockfish Team](https://stockfishchess.org) (Licensed under [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.html))
-- **Chessboard & Pieces**: [flutter-chessground](https://github.com/lichess-org/flutter-chessground) (GPL-3.0) with classic piece set by Colin M.L. Burnett (CC BY-SA 3.0 / GPL)
-- **Chess Logic**: [`chess`](https://pub.dev/packages/chess) package
-- **Typography**: [Google Fonts (Inter, JetBrains Mono)](https://fonts.google.com)
-- **AI Explanations**: [Google Gemini API](https://ai.google.dev)
+- **Creator**: Built by **Varun Dev Sharma (Vee)** ([LinkedIn](https://www.linkedin.com/in/varun-dev-sharma-b88260259/))
+- **Stockfish**: Thanks to the [Stockfish Team](https://stockfishchess.org) for the world's best open-source engine (GPL-3.0).
+- **Board UI**: Powered by [flutter-chessground](https://github.com/lichess-org/flutter-chessground) by Lichess.
 
 ---
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0** (GPL-3.0) to comply with the bundled Stockfish chess engine distribution requirements. See the [LICENSE](LICENSE) file for complete details.
+This project is open-source under the **GNU General Public License v3.0** ([GPL-3.0](LICENSE)) to honor Stockfish's open-source licensing.
