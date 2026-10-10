@@ -193,7 +193,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     ApiKeyManager keyMgr,
   ) {
     final totalH = constraints.maxHeight;
-    final totalW = constraints.maxWidth;
 
     // Minimum budget calculations to prevent any overflow
     const minCoachHeight = 110.0;
