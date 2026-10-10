@@ -2,35 +2,120 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/move_analysis.dart';
 
-/// ChessLens design system – colours, typography, and component themes.
+/// ChessLens design system – tokens, typography, and component themes.
 class AppTheme {
   AppTheme._();
 
-  // ── Core palette ──────────────────────────────────────────────
-  static const Color background      = Color(0xFF101214);
-  static const Color surface         = Color(0xFF181A1D);
-  static const Color surfaceLight    = Color(0xFF22252A);
-  static const Color surfaceBorder   = Color(0xFF2E3347);
-  static const Color primary         = Color(0xFF81B64C);
-  static const Color primaryLight    = Color(0xFF9CCC65);
-  static const Color accent          = Color(0xFF81B64C);
-  static const Color accentDark      = Color(0xFF5D8E35);
-  static const Color textPrimary     = Color(0xFFFFFFFF);
-  static const Color textSecondary   = Color(0xFFA6A9AF);
-  static const Color textTertiary    = Color(0xFF737780);
-  static const Color error           = Color(0xFFD9534F);
-  static const Color warning         = Color(0xFFF0C15C);
-  static const Color success         = Color(0xFF81B64C);
+  // ── Core color tokens ──────────────────────────────────────────
+  static const Color background        = Color(0xFF0B1117);
+  static const Color surface           = Color(0xFF121A22);
+  static const Color surfaceRaised     = Color(0xFF161F29);
+  static const Color border            = Color(0x0FFFFFFF); // rgba(255, 255, 255, 0.06)
+  static const Color textPrimary       = Color(0xFFF2F5F8);
+  static const Color textSecondary     = Color(0xFF8E9AA8);
+  static const Color textDisabled      = Color(0xFF566270);
+  static const Color primary           = Color(0xFF61E486);
+  static const Color onPrimary         = Color(0xFF0B1117);
+  static const Color primaryContainer  = Color(0xFF1B3B2A);
 
-  // ── Move classification colours ───────────────────────────────
-  static const Color bestMove        = Color(0xFF81B64C);
-  static const Color excellent       = Color(0xFF81B64C);
-  static const Color good            = Color(0xFF5D8E35);
-  static const Color book            = Color(0xFFA6A9AF);
-  static const Color inaccuracy      = Color(0xFFF0C15C);
-  static const Color mistake         = Color(0xFFE89B3D);
-  static const Color blunder         = Color(0xFFD9534F);
+  // ── Move classification tokens ────────────────────────────────
+  static const Color brilliant         = Color(0xFF2CC4A8);
+  static const Color great             = Color(0xFF5F87F8);
+  static const Color best              = Color(0xFF61E486);
+  static const Color good              = Color(0xFF93A58A);
+  static const Color inaccuracy        = Color(0xFFFBC654);
+  static const Color mistake           = Color(0xFFF48C63);
+  static const Color blunder           = Color(0xFFF26B73);
 
+  // ── Backward-compatible aliases ───────────────────────────────
+  static const Color surfaceLight      = surfaceRaised;
+  static const Color surfaceBorder     = border;
+  static const Color primaryLight      = primary;
+  static const Color accent            = primary;
+  static const Color accentDark        = primaryContainer;
+  static const Color textTertiary      = textSecondary;
+  static const Color error             = blunder;
+  static const Color warning           = inaccuracy;
+  static const Color success           = best;
+  static const Color bestMove          = best;
+  static const Color excellent         = great;
+  static const Color book              = textSecondary;
+
+  // ── Board colors ──────────────────────────────────────────────
+  static const Color boardLight        = Color(0xFFE8ECCB);
+  static const Color boardDark         = Color(0xFF739552);
+  static const Color boardHighlight    = Color(0x4DFFEB3B);
+  static const Color bestMoveArrow     = Color(0x9961E486);
+
+  // ── Evaluation bar colors ─────────────────────────────────────
+  static const Color whiteEval         = Color(0xFFEDEFF2);
+  static const Color blackEval         = Color(0xFF2A313A);
+
+  // ── Shapes & Geometry ─────────────────────────────────────────
+  static const double radiusCard       = 20.0;
+  static const double radiusInner      = 14.0;
+  static const double radiusButton     = 14.0;
+  static const double radiusChip       = 999.0;
+  static const double buttonHeight     = 52.0;
+
+  // Spacing grid (8px based)
+  static const double screenMargin     = 16.0;
+  static const double tileGap          = 12.0;
+  static const double tilePadding      = 16.0;
+
+  // Backward-compatible radius tokens
+  static const double radiusSm         = 8.0;
+  static const double radiusMd         = 14.0;
+  static const double radiusLg         = 20.0;
+  static const double radiusXl         = 24.0;
+
+  // No gradients on backgrounds or buttons; no heavy shadows
+  static List<BoxShadow> get cardShadow => const [];
+
+  // Backward-compatible gradients (kept flat or subtle for unmigrated callers)
+  static const LinearGradient primaryGradient = LinearGradient(
+    colors: [primary, primary],
+  );
+  static const LinearGradient accentGradient = LinearGradient(
+    colors: [primary, primaryContainer],
+  );
+  static const LinearGradient surfaceGradient = LinearGradient(
+    colors: [surface, surface],
+  );
+
+  // ── Typography helpers ─────────────────────────────────────────
+  static TextStyle get titleStyle => GoogleFonts.inter(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: textPrimary,
+        height: 24 / 18,
+      );
+
+  static TextStyle get bodyStyle => GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: textPrimary,
+        height: 20 / 14,
+      );
+
+  static TextStyle get captionStyle => GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: textSecondary,
+        height: 16 / 12,
+      );
+
+  static TextStyle tabularFigures([TextStyle? base]) {
+    final style = base ?? bodyStyle;
+    return style.copyWith(
+      fontFeatures: [
+        ...?style.fontFeatures,
+        const FontFeature.tabularFigures(),
+      ],
+    );
+  }
+
+  // ── Classification Helpers ─────────────────────────────────────
   static Color classificationColor(MoveClassification c) {
     switch (c) {
       case MoveClassification.blunder:
@@ -40,13 +125,13 @@ class AppTheme {
       case MoveClassification.inaccuracy:
         return inaccuracy;
       case MoveClassification.best:
-        return bestMove;
+        return best;
       case MoveClassification.excellent:
-        return excellent;
+        return great;
       case MoveClassification.good:
         return good;
       case MoveClassification.book:
-        return book;
+        return textSecondary;
       case MoveClassification.forced:
         return textSecondary;
     }
@@ -57,7 +142,7 @@ class AppTheme {
       case MoveClassification.best:
         return 'BEST';
       case MoveClassification.excellent:
-        return 'EXCELLENT';
+        return 'GREAT';
       case MoveClassification.good:
         return 'GOOD';
       case MoveClassification.book:
@@ -98,8 +183,9 @@ class AppTheme {
       case MoveClassification.inaccuracy:
         return Icons.help_outline_rounded;
       case MoveClassification.best:
-      case MoveClassification.excellent:
         return Icons.check_circle_rounded;
+      case MoveClassification.excellent:
+        return Icons.verified_rounded;
       case MoveClassification.good:
         return Icons.check_rounded;
       case MoveClassification.book:
@@ -109,50 +195,6 @@ class AppTheme {
     }
   }
 
-  // ── Eval bar ──────────────────────────────────────────────────
-  static const Color whiteEval = Color(0xFFFFFFFF);
-  static const Color blackEval = Color(0xFF181A1D);
-
-  // ── Board ─────────────────────────────────────────────────────
-  static const Color boardLight  = Color(0xFFEBECD0);
-  static const Color boardDark   = Color(0xFF739552);
-  static const Color boardHighlight = Color(0x4DFFEB3B);
-  static const Color bestMoveArrow  = Color(0x9981B64C);
-
-  // ── Gradients ─────────────────────────────────────────────────
-  static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF9CCC65), Color(0xFF81B64C)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  static const LinearGradient accentGradient = LinearGradient(
-    colors: [Color(0xFF81B64C), Color(0xFF5D8E35)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  static const LinearGradient surfaceGradient = LinearGradient(
-    colors: [Color(0xFF181A1D), Color(0xFF101214)],
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-  );
-
-  // ── Shadows ───────────────────────────────────────────────────
-  static List<BoxShadow> get cardShadow => [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: 0.25),
-      blurRadius: 12,
-      offset: const Offset(0, 4),
-    ),
-  ];
-
-  // ── Shape / Radius ────────────────────────────────────────────
-  static const double radiusSm  = 8;
-  static const double radiusMd  = 12;
-  static const double radiusLg  = 16;
-  static const double radiusXl  = 24;
-
   // ── ThemeData ─────────────────────────────────────────────────
   static ThemeData get darkTheme {
     final base = ThemeData.dark();
@@ -160,17 +202,21 @@ class AppTheme {
       scaffoldBackgroundColor: background,
       colorScheme: const ColorScheme.dark(
         primary: primary,
-        secondary: accent,
+        onPrimary: onPrimary,
+        primaryContainer: primaryContainer,
+        onPrimaryContainer: primary,
+        secondary: primary,
+        onSecondary: onPrimary,
         surface: surface,
-        error: error,
-        onPrimary: textPrimary,
-        onSecondary: background,
         onSurface: textPrimary,
-        onError: textPrimary,
+        error: blunder,
+        onError: onPrimary,
+        outline: border,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: surface,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
         titleTextStyle: GoogleFonts.inter(
           fontSize: 18,
@@ -182,18 +228,23 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
+        margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-          side: const BorderSide(color: surfaceBorder, width: 1),
+          borderRadius: BorderRadius.circular(radiusCard),
+          side: const BorderSide(color: border, width: 1),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
-          foregroundColor: textPrimary,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          foregroundColor: onPrimary,
+          disabledBackgroundColor: surfaceRaised,
+          disabledForegroundColor: textDisabled,
+          elevation: 0,
+          minimumSize: const Size.fromHeight(buttonHeight),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusMd),
+            borderRadius: BorderRadius.circular(radiusButton),
           ),
           textStyle: GoogleFonts.inter(
             fontSize: 15,
@@ -203,11 +254,15 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
+          backgroundColor: surfaceRaised,
           foregroundColor: textPrimary,
-          side: const BorderSide(color: surfaceBorder),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          disabledForegroundColor: textDisabled,
+          elevation: 0,
+          minimumSize: const Size.fromHeight(buttonHeight),
+          side: const BorderSide(color: border, width: 1),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusMd),
+            borderRadius: BorderRadius.circular(radiusButton),
           ),
           textStyle: GoogleFonts.inter(
             fontSize: 15,
@@ -215,41 +270,67 @@ class AppTheme {
           ),
         ),
       ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: textSecondary,
+          disabledForegroundColor: textDisabled,
+          textStyle: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: primary,
+        inactiveTrackColor: surfaceRaised,
+        thumbColor: primary,
+        overlayColor: primaryContainer.withValues(alpha: 0.3),
+        trackHeight: 4,
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surfaceLight,
+        fillColor: surfaceRaised,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: const BorderSide(color: surfaceBorder),
+          borderRadius: BorderRadius.circular(radiusInner),
+          borderSide: const BorderSide(color: border, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: const BorderSide(color: surfaceBorder),
+          borderRadius: BorderRadius.circular(radiusInner),
+          borderSide: const BorderSide(color: border, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: const BorderSide(color: primary, width: 2),
+          borderRadius: BorderRadius.circular(radiusInner),
+          borderSide: const BorderSide(color: primary, width: 1.5),
         ),
-        hintStyle: GoogleFonts.inter(color: textTertiary, fontSize: 14),
+        hintStyle: GoogleFonts.inter(color: textSecondary, fontSize: 14),
         labelStyle: GoogleFonts.inter(color: textSecondary, fontSize: 14),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: surface,
+        modalBackgroundColor: surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: surfaceRaised,
+        contentTextStyle: GoogleFonts.inter(color: textPrimary, fontSize: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusInner),
+          side: const BorderSide(color: border, width: 1),
+        ),
+        behavior: SnackBarBehavior.floating,
       ),
       textTheme: GoogleFonts.interTextTheme(base.textTheme).apply(
         bodyColor: textPrimary,
         displayColor: textPrimary,
       ),
       dividerTheme: const DividerThemeData(
-        color: surfaceBorder,
+        color: border,
         thickness: 1,
-      ),
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: surfaceLight,
-        contentTextStyle: GoogleFonts.inter(color: textPrimary, fontSize: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-        ),
-        behavior: SnackBarBehavior.floating,
+        space: 1,
       ),
     );
   }
