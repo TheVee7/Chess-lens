@@ -15,6 +15,7 @@ import '../../widgets/move_strip.dart';
 import '../../widgets/move_list.dart';
 import '../../widgets/evaluation_graph.dart';
 import '../../widgets/analysis_controls.dart';
+import '../../widgets/ui/ui.dart';
 import '../summary/summary_screen.dart';
 import '../settings/settings_screen.dart';
 
@@ -67,7 +68,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         final analysis = controller.analysis;
         if (analysis == null) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: Center(
+              child: CircularProgressIndicator(color: AppTheme.primary),
+            ),
           );
         }
 
@@ -100,7 +103,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             title: const Text('Game Review'),
             actions: [
               IconButton(
-                icon: const Icon(Icons.share_rounded),
+                icon: const Icon(Icons.share_rounded, size: 20),
                 tooltip: 'Share PGN',
                 onPressed: () {
                   SharePlus.instance.share(
@@ -112,21 +115,27 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 },
               ),
               if (controller.gameReview != null)
-                IconButton(
-                  icon: const Icon(Icons.summarize_rounded),
-                  tooltip: 'Game Summary',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            ChangeNotifierProvider<GameController>.value(
-                          value: controller,
-                          child: SummaryScreen(game: widget.game),
-                        ),
-                      ),
-                    );
-                  },
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Center(
+                    child: SecondaryButton(
+                      label: 'Review',
+                      leadingIcon: Icons.summarize_rounded,
+                      height: 36,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ChangeNotifierProvider<GameController>.value(
+                              value: controller,
+                              child: SummaryScreen(game: widget.game),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -188,24 +197,27 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
     // Minimum budget calculations to prevent any overflow
     const minCoachHeight = 110.0;
-    const maxCoachHeight = 175.0;
+    const maxCoachHeight = 165.0;
     const moveStripHeight = 38.0;
-    const controlsHeight = 56.0;
-    const verticalPaddings = 24.0; // 4 spacing gaps of 6dp
+    const controlsHeight = 120.0;
+    const evalBarHeight = 15.0;
+    const boardGap = 6.0;
+    const verticalPaddings = 24.0;
 
-    final fixedOverhead = moveStripHeight + controlsHeight + verticalPaddings;
+    final fixedOverhead = moveStripHeight +
+        controlsHeight +
+        evalBarHeight +
+        boardGap +
+        verticalPaddings;
     final availableForBoardAndCoach = math.max(0.0, totalH - fixedOverhead);
 
-    double coachHeight = (totalH * 0.24).clamp(minCoachHeight, maxCoachHeight);
+    double coachHeight =
+        (totalH * 0.22).clamp(minCoachHeight, maxCoachHeight);
     double remainingForBoard = availableForBoardAndCoach - coachHeight;
 
-    if (remainingForBoard < 160.0 && availableForBoardAndCoach > minCoachHeight) {
-      coachHeight = math.max(minCoachHeight, availableForBoardAndCoach - 160.0);
-      remainingForBoard = availableForBoardAndCoach - coachHeight;
+    if (remainingForBoard < 150.0 && availableForBoardAndCoach > minCoachHeight) {
+      coachHeight = math.max(minCoachHeight, availableForBoardAndCoach - 150.0);
     }
-
-    final maxBoardWidth = math.max(100.0, totalW - 52.0);
-    final boardSize = math.max(100.0, math.min(maxBoardWidth, remainingForBoard));
 
     return Column(
       children: [
@@ -219,7 +231,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
         // 1. Coach panel (top) – fixed stable height, scrollable inside
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: CoachReviewWidget(
             height: coachHeight,
             currentMove: currentMove,
@@ -252,58 +264,83 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         ),
         const SizedBox(height: 6),
 
-        // 2. Board row (middle) – centered, responsive square
+        // 2. Board + Symmetrical Horizontal Evaluation Bar (middle)
         Expanded(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    height: boardSize,
-                    child: EvalBar(
-                      evalCp: currentMove?.evalAfter ?? 0,
-                      isMate: currentMove?.isMateAfter ?? false,
-                      mateIn: currentMove?.mateAfter,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onHorizontalDragEnd: (details) {
-                      final v = details.primaryVelocity ?? 0;
-                      if (v < -200) {
-                        controller.nextMove();
-                      } else if (v > 200) {
-                        controller.previousMove();
-                      }
-                    },
-                    child: SizedBox(
-                      width: boardSize,
-                      height: boardSize,
-                      child: ChessBoardWidget(
-                        fen: currentFen,
-                        flipped: _boardFlipped,
-                        lastMoveFrom: lastFrom,
-                        lastMoveTo: lastTo,
-                        bestMoveFrom: bestFrom,
-                        bestMoveTo: bestTo,
-                        showBestMoveArrow: currentMove != null &&
-                            currentMove.classification !=
-                                MoveClassification.best,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: LayoutBuilder(
+                builder: (context, boardConstraints) {
+                  final maxBoardByH = math.max(
+                    60.0,
+                    boardConstraints.maxHeight - evalBarHeight - boardGap,
+                  );
+                  final boardSize = math.max(
+                    60.0,
+                    math.min(boardConstraints.maxWidth, maxBoardByH),
+                  );
+
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Board Container
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onHorizontalDragEnd: (details) {
+                          final v = details.primaryVelocity ?? 0;
+                          if (v < -200) {
+                            controller.nextMove();
+                          } else if (v > 200) {
+                            controller.previousMove();
+                          }
+                        },
+                        child: Container(
+                          width: boardSize,
+                          height: boardSize,
+                          decoration: BoxDecoration(
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusInner),
+                            border:
+                                Border.all(color: AppTheme.border, width: 1.0),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: ChessBoardWidget(
+                            fen: currentFen,
+                            flipped: _boardFlipped,
+                            lastMoveFrom: lastFrom,
+                            lastMoveTo: lastTo,
+                            bestMoveFrom: bestFrom,
+                            bestMoveTo: bestTo,
+                            showBestMoveArrow: currentMove != null &&
+                                currentMove.classification !=
+                                    MoveClassification.best,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
+                      const SizedBox(height: boardGap),
+
+                      // Symmetrical horizontal evaluation bar directly under the board
+                      SizedBox(
+                        width: boardSize,
+                        height: evalBarHeight,
+                        child: EvalBar(
+                          evalCp: currentMove?.evalAfter ?? 0,
+                          isMate: currentMove?.isMateAfter ?? false,
+                          mateIn: currentMove?.mateAfter,
+                          flipped: _boardFlipped,
+                          height: evalBarHeight,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
         ),
         const SizedBox(height: 6),
 
-        // 3. Move strip – single line horizontally scrolling move chips
+        // 3. Move strip – horizontally scrolling rounded-rectangle chips
         MoveStripWidget(
           moves: controller.analysis!.moves,
           currentPlyIndex: controller.currentPlyIndex,
@@ -313,7 +350,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
         // 4. Control bar (bottom, pinned in thumb zone)
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: AnalysisControls(
             onFirst: () => controller.goToStart(),
             onPrevious: () => controller.previousMove(),
@@ -325,7 +362,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             onDetails: () => _openDetailsSheet(context, controller),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
       ],
     );
   }
@@ -345,30 +382,24 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final totalH = constraints.maxHeight;
     final totalW = constraints.maxWidth;
 
-    final maxBoardByWidth = (totalW * 0.52) - 52.0;
-    final maxBoardByHeight = totalH - 24.0;
+    const evalBarHeight = 15.0;
+    const boardGap = 6.0;
+
+    final maxBoardByWidth = (totalW * 0.48) - 32.0;
+    final maxBoardByHeight = totalH - evalBarHeight - boardGap - 24.0;
     final boardSize =
         math.max(120.0, math.min(maxBoardByWidth, maxBoardByHeight));
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Left: Board + Eval bar
+        // Left: Board + Horizontal Eval Bar block
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(
-                height: boardSize,
-                child: EvalBar(
-                  evalCp: currentMove?.evalAfter ?? 0,
-                  isMate: currentMove?.isMateAfter ?? false,
-                  mateIn: currentMove?.mateAfter,
-                ),
-              ),
-              const SizedBox(width: 8),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onHorizontalDragEnd: (details) {
@@ -379,9 +410,14 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     controller.previousMove();
                   }
                 },
-                child: SizedBox(
+                child: Container(
                   width: boardSize,
                   height: boardSize,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusInner),
+                    border: Border.all(color: AppTheme.border, width: 1.0),
+                  ),
+                  clipBehavior: Clip.antiAlias,
                   child: ChessBoardWidget(
                     fen: currentFen,
                     flipped: _boardFlipped,
@@ -394,15 +430,27 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: boardGap),
+              SizedBox(
+                width: boardSize,
+                height: evalBarHeight,
+                child: EvalBar(
+                  evalCp: currentMove?.evalAfter ?? 0,
+                  isMate: currentMove?.isMateAfter ?? false,
+                  mateIn: currentMove?.mateAfter,
+                  flipped: _boardFlipped,
+                  height: evalBarHeight,
+                ),
+              ),
             ],
           ),
         ),
-        const VerticalDivider(width: 1),
+        const VerticalDivider(width: 1, color: AppTheme.border),
 
         // Right column: Coach panel, Move strip, Control bar pinned at bottom
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Column(
               children: [
                 Expanded(
@@ -487,10 +535,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     decoration: const BoxDecoration(
                       color: AppTheme.surface,
                       borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(AppTheme.radiusLg),
+                        top: Radius.circular(24),
                       ),
                       border: Border(
-                        top: BorderSide(color: AppTheme.surfaceBorder, width: 1),
+                        top: BorderSide(color: AppTheme.border, width: 1.0),
                       ),
                     ),
                     child: Column(
@@ -502,7 +550,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             width: 36,
                             height: 4,
                             decoration: BoxDecoration(
-                              color: AppTheme.surfaceBorder,
+                              color: AppTheme.border,
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
@@ -513,14 +561,14 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           child: Row(
                             children: [
                               const Icon(Icons.analytics_rounded,
-                                  size: 18, color: AppTheme.primaryLight),
+                                  size: 18, color: AppTheme.primary),
                               const SizedBox(width: 8),
                               const Expanded(
                                 child: Text(
                                   'Engine & Move Details',
                                   style: TextStyle(
                                     color: AppTheme.textPrimary,
-                                    fontSize: 15,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w700,
                                   ),
                                   overflow: TextOverflow.ellipsis,
@@ -536,27 +584,22 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             ],
                           ),
                         ),
-                        const Divider(height: 1, color: AppTheme.surfaceBorder),
+                        const Divider(height: 1, color: AppTheme.border),
                         Expanded(
                           child: ListView(
                             controller: scrollController,
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                             children: [
-                              // Engine evaluation panel
+                              // Engine section
+                              const SectionHeader(title: 'Engine'),
+                              const SizedBox(height: 8),
                               EnginePanel(analysis: move),
                               const SizedBox(height: 16),
 
                               // Evaluation trajectory graph
                               if (gameAnalysis != null &&
                                   gameAnalysis.moves.isNotEmpty) ...[
-                                const Text(
-                                  'Evaluation Trajectory',
-                                  style: TextStyle(
-                                    color: AppTheme.textSecondary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                                const SectionHeader(title: 'Evaluation'),
                                 const SizedBox(height: 8),
                                 EvaluationGraphWidget(
                                   moves: gameAnalysis.moves,
@@ -570,14 +613,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               // Full move list
                               if (gameAnalysis != null &&
                                   gameAnalysis.moves.isNotEmpty) ...[
-                                const Text(
-                                  'Full Move History',
-                                  style: TextStyle(
-                                    color: AppTheme.textSecondary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                                const SectionHeader(title: 'Moves'),
                                 const SizedBox(height: 8),
                                 MoveListWidget(
                                   moves: gameAnalysis.moves,

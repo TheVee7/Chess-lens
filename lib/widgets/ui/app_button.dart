@@ -105,6 +105,7 @@ class SecondaryButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final IconData? leadingIcon;
   final bool isLoading;
+  final double height;
 
   const SecondaryButton({
     super.key,
@@ -112,6 +113,7 @@ class SecondaryButton extends StatelessWidget {
     this.onPressed,
     this.leadingIcon,
     this.isLoading = false,
+    this.height = AppTheme.buttonHeight,
   });
 
   @override
@@ -122,7 +124,7 @@ class SecondaryButton extends StatelessWidget {
       button: true,
       enabled: enabled,
       child: SizedBox(
-        height: AppTheme.buttonHeight,
+        height: height,
         child: Container(
           decoration: BoxDecoration(
             color: AppTheme.surfaceRaised,

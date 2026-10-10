@@ -3,6 +3,7 @@ import '../core/theme/app_theme.dart';
 import '../core/game_controller.dart';
 import '../models/move_analysis.dart';
 import '../models/game_explanation.dart';
+import 'ui/ui.dart';
 
 /// Fixed-height Coach Review panel with internal scrolling, status transitions,
 /// and AI explanations located above the chessboard.
@@ -38,25 +39,25 @@ class CoachReviewWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: height == double.infinity ? null : height,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceLight,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
         border: Border.all(
           color: currentMove != null && currentMove!.isImportant
-              ? AppTheme.classificationColor(currentMove!.classification).withValues(alpha: 0.35)
-              : AppTheme.surfaceBorder,
+              ? AppTheme.classificationColor(currentMove!.classification).withValues(alpha: 0.3)
+              : AppTheme.border,
+          width: 1.0,
         ),
-        boxShadow: AppTheme.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header row (stable, never moves) ─────────────────────────
           _buildHeader(),
-          const SizedBox(height: 6),
-          const Divider(height: 1, thickness: 0.5, color: AppTheme.surfaceBorder),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
+          const Divider(height: 1, thickness: 1, color: AppTheme.border),
+          const SizedBox(height: 8),
 
           // ── Scrollable Body with smooth transition ───────────────────
           Expanded(
@@ -85,18 +86,18 @@ class CoachReviewWidget extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient,
-                borderRadius: BorderRadius.circular(6),
+                color: AppTheme.primaryContainer,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
               ),
-              child: const Icon(Icons.school_rounded, color: Colors.white, size: 14),
+              child: const Icon(Icons.school_rounded, color: AppTheme.primary, size: 14),
             ),
             const SizedBox(width: 8),
             const Text(
               'Coach Review',
               style: TextStyle(
-                color: AppTheme.primaryLight,
+                color: AppTheme.textPrimary,
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
               ),
@@ -105,13 +106,14 @@ class CoachReviewWidget extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceBorder,
+                color: AppTheme.surfaceRaised,
                 borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: AppTheme.border),
               ),
               child: const Text(
                 'START',
                 style: TextStyle(
-                  color: AppTheme.textTertiary,
+                  color: AppTheme.textSecondary,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -123,8 +125,6 @@ class CoachReviewWidget extends StatelessWidget {
     }
 
     final m = currentMove!;
-    final classColor = AppTheme.classificationColor(m.classification);
-    final classLabel = AppTheme.classificationLabel(m.classification);
     final isAiWritten = status == ExplanationStatus.done && explanation != null;
 
     return FittedBox(
@@ -133,42 +133,17 @@ class CoachReviewWidget extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Classification icon chip
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-            decoration: BoxDecoration(
-              color: classColor.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  AppTheme.classificationIcon(m.classification),
-                  color: classColor,
-                  size: 13,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${m.moveNumber}${m.isWhite ? '.' : '...'} ${m.san}',
-                  style: TextStyle(
-                    color: classColor,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
+          // Classification badge
+          ClassificationBadge(classification: m.classification),
+          const SizedBox(width: 8),
 
-          // Classification badge text
+          // Move label
           Text(
-            classLabel,
-            style: TextStyle(
-              color: classColor,
+            '${m.moveNumber}${m.isWhite ? '.' : '...'} ${m.san}',
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
               fontWeight: FontWeight.w700,
-              fontSize: 11,
+              fontSize: 14,
             ),
           ),
           const SizedBox(width: 8),
@@ -180,28 +155,29 @@ class CoachReviewWidget extends StatelessWidget {
               color: _evalChangeColor(m),
               fontWeight: FontWeight.w600,
               fontSize: 12,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
 
           // Gemini AI badge
           if (isAiWritten) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
+                color: AppTheme.primaryContainer,
+                borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                 border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.auto_awesome_rounded, color: AppTheme.primaryLight, size: 10),
-                  SizedBox(width: 2),
+                  Icon(Icons.auto_awesome_rounded, color: AppTheme.primary, size: 10),
+                  SizedBox(width: 3),
                   Text(
                     'Gemini',
                     style: TextStyle(
-                      color: AppTheme.primaryLight,
+                      color: AppTheme.primary,
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
                     ),
@@ -213,7 +189,7 @@ class CoachReviewWidget extends StatelessWidget {
 
           // Progress spinner
           if (isGeminiRunning || status == ExplanationStatus.generating) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             const SizedBox(
               width: 12,
               height: 12,
@@ -236,14 +212,14 @@ class CoachReviewWidget extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.info_outline_rounded, size: 16, color: AppTheme.textTertiary),
+            Icon(Icons.info_outline_rounded, size: 16, color: AppTheme.textSecondary),
             SizedBox(width: 8),
             Expanded(
               child: Text(
                 'Starting position. Use the controls below or tap any move in the strip to step through the game review.',
                 style: TextStyle(
                   color: AppTheme.textSecondary,
-                  fontSize: 12,
+                  fontSize: 13,
                   height: 1.4,
                 ),
               ),
@@ -258,8 +234,9 @@ class CoachReviewWidget extends StatelessWidget {
     // 2. Non-critical move (no AI explanation triggered)
     if (!m.isImportant) {
       final isBest = m.classification == MoveClassification.best;
+      final classColor = AppTheme.classificationColor(m.classification);
       return Padding(
-        padding: EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -268,16 +245,16 @@ class CoachReviewWidget extends StatelessWidget {
                 Icon(
                   isBest ? Icons.check_circle_rounded : Icons.check_rounded,
                   size: 16,
-                  color: AppTheme.classificationColor(m.classification),
+                  color: classColor,
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     isBest
-                        ? 'Best move! Matches the engine choice.'
-                        : 'Good move. Maintains solid position (${m.evalAfterStr}).',
+                        ? 'Best move! Matches the top engine choice.'
+                        : 'Good move. Maintains a solid position (${m.evalAfterStr}).',
                     style: TextStyle(
-                      color: AppTheme.classificationColor(m.classification),
+                      color: classColor,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -306,29 +283,29 @@ class CoachReviewWidget extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: InkWell(
           onTap: onOpenSettings,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppTheme.radiusInner),
           child: Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppTheme.warning.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3)),
+              color: AppTheme.inaccuracy.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppTheme.radiusInner),
+              border: Border.all(color: AppTheme.inaccuracy.withValues(alpha: 0.3)),
             ),
             child: const Row(
               children: [
-                Icon(Icons.key_rounded, color: AppTheme.warning, size: 16),
+                Icon(Icons.key_rounded, color: AppTheme.inaccuracy, size: 16),
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Add Gemini API Key in Settings to unlock AI Coach explanations.',
                     style: TextStyle(
-                      color: AppTheme.warning,
+                      color: AppTheme.inaccuracy,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios_rounded, color: AppTheme.warning, size: 11),
+                Icon(Icons.arrow_forward_ios_rounded, color: AppTheme.inaccuracy, size: 11),
               ],
             ),
           ),
@@ -365,9 +342,9 @@ class CoachReviewWidget extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               _buildSkeletonBar(0.85),
-              const SizedBox(height: 5),
+              const SizedBox(height: 6),
               _buildSkeletonBar(0.60),
             ],
           ),
@@ -379,7 +356,7 @@ class CoachReviewWidget extends StatelessWidget {
             padding: EdgeInsets.symmetric(vertical: 4),
             child: Text(
               'No explanation available for this move.',
-              style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
             ),
           );
         }
@@ -393,31 +370,31 @@ class CoachReviewWidget extends StatelessWidget {
               style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 13,
-                height: 1.4,
+                height: 1.45,
               ),
             ),
             if (exp.betterMove.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppTheme.accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppTheme.accent.withValues(alpha: 0.25)),
+                  color: AppTheme.surfaceRaised,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusInner),
+                  border: Border.all(color: AppTheme.border),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.lightbulb_rounded, color: AppTheme.accent, size: 14),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.lightbulb_rounded, color: AppTheme.primary, size: 15),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        exp.betterMove,
+                        'Better: ${exp.betterMove}',
                         style: const TextStyle(
-                          color: AppTheme.accent,
+                          color: AppTheme.primary,
                           fontSize: 12,
                           height: 1.35,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -428,22 +405,22 @@ class CoachReviewWidget extends StatelessWidget {
             if (exp.lesson.isNotEmpty) ...[
               const SizedBox(height: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppTheme.warning.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppTheme.warning.withValues(alpha: 0.25)),
+                  color: AppTheme.surfaceRaised,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusInner),
+                  border: Border.all(color: AppTheme.border),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.menu_book_rounded, color: AppTheme.warning, size: 14),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.menu_book_rounded, color: AppTheme.inaccuracy, size: 15),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         exp.lesson,
                         style: const TextStyle(
-                          color: AppTheme.warning,
+                          color: AppTheme.textSecondary,
                           fontSize: 12,
                           height: 1.35,
                           fontWeight: FontWeight.w500,
@@ -465,12 +442,13 @@ class CoachReviewWidget extends StatelessWidget {
             children: [
               Text(
                 errorMessage ?? 'Coach explanation unavailable.',
-                style: const TextStyle(color: AppTheme.error, fontSize: 12),
+                style: const TextStyle(color: AppTheme.blunder, fontSize: 12),
               ),
               if (canRetry && onRetry != null) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 InkWell(
                   onTap: onRetry,
+                  borderRadius: BorderRadius.circular(6),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -501,8 +479,9 @@ class CoachReviewWidget extends StatelessWidget {
       child: Container(
         height: 10,
         decoration: BoxDecoration(
-          color: AppTheme.surfaceBorder.withValues(alpha: 0.6),
+          color: AppTheme.surfaceRaised,
           borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: AppTheme.border),
         ),
       ),
     );

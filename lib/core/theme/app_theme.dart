@@ -50,12 +50,15 @@ class AppTheme {
   // ── Evaluation bar colors ─────────────────────────────────────
   static const Color whiteEval         = Color(0xFFEDEFF2);
   static const Color blackEval         = Color(0xFF2A313A);
+  static const Color evalWhite         = whiteEval;
+  static const Color evalBlack         = blackEval;
 
   // ── Shapes & Geometry ─────────────────────────────────────────
   static const double radiusCard       = 20.0;
   static const double radiusInner      = 14.0;
   static const double radiusButton     = 14.0;
   static const double radiusChip       = 999.0;
+  static const double radiusFull       = radiusChip;
   static const double buttonHeight     = 52.0;
 
   // Spacing grid (8px based)

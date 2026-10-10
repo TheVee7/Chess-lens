@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../models/move_analysis.dart';
+import 'ui/ui.dart';
 
 /// Panel showing the engine evaluation, played vs best move, and PV.
 class EnginePanel extends StatelessWidget {
@@ -14,25 +15,26 @@ class EnginePanel extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceLight,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          border: Border.all(color: AppTheme.surfaceBorder),
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+          border: Border.all(color: AppTheme.border),
         ),
         child: const Text(
           'Select a move to see engine analysis',
-          style: TextStyle(color: AppTheme.textTertiary, fontSize: 14),
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
         ),
       );
     }
 
     final a = analysis!;
+    final classColor = AppTheme.classificationColor(a.classification);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceLight,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.surfaceBorder),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,47 +42,45 @@ class EnginePanel extends StatelessWidget {
           // ── Move header ─────────────────────────────────────
           Wrap(
             spacing: 8,
-            runSpacing: 4,
+            runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _classColor(a.classification).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
+                  color: classColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusInner),
+                  border: Border.all(color: classColor.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   '${a.moveNumber}${a.isWhite ? '.' : '...'} ${a.san}',
                   style: TextStyle(
-                    color: _classColor(a.classification),
+                    color: classColor,
                     fontWeight: FontWeight.w700,
-                    fontSize: 16,
+                    fontSize: 15,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ),
-              _ClassificationBadge(classification: a.classification),
+              ClassificationBadge(classification: a.classification),
               if (a.engineTimedOut)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(4),
-                    border:
-                        Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                    color: AppTheme.inaccuracy.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusInner),
+                    border: Border.all(color: AppTheme.inaccuracy.withValues(alpha: 0.4)),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.timer_outlined,
-                          size: 12, color: Colors.amber),
+                      Icon(Icons.timer_outlined, size: 12, color: AppTheme.inaccuracy),
                       SizedBox(width: 4),
                       Text(
                         'Timeout',
                         style: TextStyle(
-                          color: Colors.amber,
-                          fontSize: 10,
+                          color: AppTheme.inaccuracy,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -94,19 +94,23 @@ class EnginePanel extends StatelessWidget {
           // ── Eval change ────────────────────────────────────
           Row(
             children: [
-              const Icon(Icons.analytics_outlined,
-                  size: 16, color: AppTheme.textTertiary),
+              const Icon(Icons.analytics_outlined, size: 16, color: AppTheme.textSecondary),
               const SizedBox(width: 6),
-              const Text('Stockfish',
-                  style: TextStyle(
-                      color: AppTheme.textTertiary, fontSize: 12)),
-              const Spacer(),
+              const Expanded(
+                child: Text(
+                  'Stockfish',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               Text(
                 '${a.evalBeforeStr} → ${a.evalAfterStr}',
                 style: TextStyle(
                   color: _evalChangeColor(a),
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ],
@@ -114,36 +118,43 @@ class EnginePanel extends StatelessWidget {
 
           // ── Best move ──────────────────────────────────────
           if (a.bestMoveSan != null && a.bestMoveSan != a.san) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.lightbulb_outline,
-                    size: 16, color: AppTheme.accent),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Best: ${a.bestMoveSan}',
-                    style: const TextStyle(
-                      color: AppTheme.accent,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceRaised,
+                borderRadius: BorderRadius.circular(AppTheme.radiusInner),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.lightbulb_rounded, size: 16, color: AppTheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Best: ${a.bestMoveSan}',
+                      style: const TextStyle(
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
 
           // ── PV ─────────────────────────────────────────────
           if (a.pv.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Text(
                 'PV: ${a.pv.join(' ')}',
                 style: const TextStyle(
-                  color: AppTheme.textTertiary,
+                  color: AppTheme.textSecondary,
                   fontSize: 12,
                   fontFamily: 'monospace',
                 ),
@@ -155,93 +166,9 @@ class EnginePanel extends StatelessWidget {
     );
   }
 
-  static Color _classColor(MoveClassification c) {
-    switch (c) {
-      case MoveClassification.blunder:
-        return AppTheme.blunder;
-      case MoveClassification.mistake:
-        return AppTheme.mistake;
-      case MoveClassification.inaccuracy:
-        return AppTheme.inaccuracy;
-      case MoveClassification.best:
-        return AppTheme.bestMove;
-      case MoveClassification.excellent:
-        return AppTheme.excellent;
-      default:
-        return AppTheme.textSecondary;
-    }
-  }
-
   static Color _evalChangeColor(MoveAnalysis a) {
     if (a.evalLoss > 100) return AppTheme.blunder;
     if (a.evalLoss > 50) return AppTheme.mistake;
     return AppTheme.textPrimary;
-  }
-}
-
-class _ClassificationBadge extends StatelessWidget {
-  final MoveClassification classification;
-
-  const _ClassificationBadge({required this.classification});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: _color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        _label,
-        style: TextStyle(
-          color: _color,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
-  String get _label {
-    switch (classification) {
-      case MoveClassification.best:
-        return 'BEST';
-      case MoveClassification.excellent:
-        return 'EXCELLENT';
-      case MoveClassification.good:
-        return 'GOOD';
-      case MoveClassification.book:
-        return 'BOOK';
-      case MoveClassification.inaccuracy:
-        return 'INACCURACY';
-      case MoveClassification.mistake:
-        return 'MISTAKE';
-      case MoveClassification.blunder:
-        return 'BLUNDER';
-      case MoveClassification.forced:
-        return 'FORCED';
-    }
-  }
-
-  Color get _color {
-    switch (classification) {
-      case MoveClassification.best:
-        return AppTheme.bestMove;
-      case MoveClassification.excellent:
-        return AppTheme.excellent;
-      case MoveClassification.good:
-        return AppTheme.good;
-      case MoveClassification.book:
-        return AppTheme.book;
-      case MoveClassification.inaccuracy:
-        return AppTheme.inaccuracy;
-      case MoveClassification.mistake:
-        return AppTheme.mistake;
-      case MoveClassification.blunder:
-        return AppTheme.blunder;
-      case MoveClassification.forced:
-        return AppTheme.textSecondary;
-    }
   }
 }
