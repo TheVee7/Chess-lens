@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/config/settings_manager.dart';
 import '../../core/game_controller.dart';
 import '../../models/chess_game.dart';
+import '../../widgets/ui/ui.dart';
 import 'quick_report_screen.dart';
 
 /// Shown while Stockfish analyzes the game.
@@ -17,10 +18,8 @@ class LoadingScreen extends StatefulWidget {
   State<LoadingScreen> createState() => _LoadingScreenState();
 }
 
-class _LoadingScreenState extends State<LoadingScreen>
-    with SingleTickerProviderStateMixin {
+class _LoadingScreenState extends State<LoadingScreen> {
   late final GameController _controller;
-  late final AnimationController _pulseController;
   bool _started = false;
   bool _transferredToReport = false;
 
@@ -28,10 +27,6 @@ class _LoadingScreenState extends State<LoadingScreen>
   void initState() {
     super.initState();
     _controller = GameController();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
   }
 
   @override
@@ -59,11 +54,7 @@ class _LoadingScreenState extends State<LoadingScreen>
     setState(() {});
 
     final am = _controller.analysisManager;
-    if (am.error != null) {
-      if (_pulseController.isAnimating) {
-        _pulseController.stop();
-      }
-    } else if (am.result != null && !_transferredToReport) {
+    if (am.result != null && !_transferredToReport) {
       _transferredToReport = true;
       _controller.removeListener(_onUpdate);
       Navigator.pushReplacement(
@@ -88,8 +79,12 @@ class _LoadingScreenState extends State<LoadingScreen>
       _controller.cancelAnalysis();
       _controller.dispose();
     }
-    _pulseController.dispose();
     super.dispose();
+  }
+
+  void _handleCancel() {
+    _controller.cancelAnalysis();
+    Navigator.pop(context);
   }
 
   @override
@@ -99,6 +94,7 @@ class _LoadingScreenState extends State<LoadingScreen>
     final currentPly = am.currentPly;
     final totalPlies = am.totalPlies;
     final hasError = am.error != null;
+    final engineDepth = context.read<SettingsManager>().engineDepth;
 
     return PopScope(
       canPop: true,
@@ -108,136 +104,81 @@ class _LoadingScreenState extends State<LoadingScreen>
         }
       },
       child: Scaffold(
+        appBar: AppBar(
+          title: Text(hasError ? 'Engine Error' : 'Analyzing game'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: _handleCancel,
+          ),
+        ),
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.screenMargin,
+                vertical: 24,
+              ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // ── Animated icon / Error icon ─────────────────────────────
-                  if (!hasError)
-                    AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (context, child) {
-                        return Transform.scale(
-                          scale: 1.0 + _pulseController.value * 0.08,
-                          child: Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              gradient: AppTheme.primaryGradient,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.primary.withValues(
-                                    alpha: 0.3 + _pulseController.value * 0.2,
-                                  ),
-                                  blurRadius: 30,
-                                  spreadRadius: 5,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.memory_rounded,
-                              size: 40,
-                              color: Colors.white,
-                            ),
-                          ),
-                        );
-                      },
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: AppTheme.error.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.error_outline_rounded,
-                        size: 48,
-                        color: AppTheme.error,
-                      ),
-                    ),
-                  const SizedBox(height: 32),
-
-                  Text(
-                    hasError ? 'Engine Error' : 'Analyzing Game',
-                    style: GoogleFonts.inter(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: hasError ? AppTheme.error : AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${widget.game.white} vs ${widget.game.black}',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
                   if (!hasError) ...[
-                    // ── Progress bar ──────────────────────────────
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 8,
-                        backgroundColor: AppTheme.surfaceLight,
-                        valueColor: AlwaysStoppedAnimation(
-                          progress < 1.0 ? AppTheme.primary : AppTheme.accent,
-                        ),
+                    // ── Match details caption ─────────────────────────
+                    Text(
+                      '${widget.game.white} vs ${widget.game.black}',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 36),
 
-                    Text(
-                      totalPlies > 0
-                          ? 'Move $currentPly / $totalPlies'
+                    // ── Progress Ring ─────────────────────────────────
+                    ProgressRing(
+                      progress: progress,
+                      size: 140,
+                      label: totalPlies > 0
+                          ? 'Move $currentPly of $totalPlies'
                           : 'Preparing Stockfish...',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: AppTheme.textTertiary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Stockfish depth ${context.read<SettingsManager>().engineDepth}',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: AppTheme.textTertiary,
-                      ),
+                      sublabel: 'Stockfish depth $engineDepth',
                     ),
                   ] else ...[
-                    // ── Error container ───────────────────────────
+                    // ── Error State Card ──────────────────────────────
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: AppTheme.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        color: AppTheme.blunder.withValues(alpha: 0.10),
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusCard),
                         border: Border.all(
-                          color: AppTheme.error.withValues(alpha: 0.3),
+                          color: AppTheme.blunder.withValues(alpha: 0.30),
+                          width: 1,
                         ),
                       ),
                       child: Column(
                         children: [
-                          const Text(
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            size: 40,
+                            color: AppTheme.blunder,
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
                             'Stockfish engine failed to start or is unsupported on this platform architecture.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: GoogleFonts.inter(
                               color: AppTheme.textPrimary,
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
+                              height: 1.4,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             am.error ?? 'Unknown engine error.',
-                            style: const TextStyle(
-                              color: AppTheme.error,
+                            style: GoogleFonts.inter(
+                              color: AppTheme.blunder,
                               fontSize: 12,
                             ),
                             textAlign: TextAlign.center,
@@ -247,18 +188,13 @@ class _LoadingScreenState extends State<LoadingScreen>
                     ),
                   ],
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 48),
 
-                  // ── Cancel / Back button ───────────────────────
-                  TextButton(
-                    onPressed: () {
-                      _controller.cancelAnalysis();
-                      Navigator.pop(context);
-                    },
-                    child: Text(
-                      hasError ? 'Go Back' : 'Cancel',
-                      style: const TextStyle(color: AppTheme.textTertiary),
-                    ),
+                  // ── Quiet Cancel / Go Back Text Button ────────────
+                  AppTextButton(
+                    label: hasError ? 'Go Back' : 'Cancel',
+                    color: AppTheme.textSecondary,
+                    onPressed: _handleCancel,
                   ),
                 ],
               ),
