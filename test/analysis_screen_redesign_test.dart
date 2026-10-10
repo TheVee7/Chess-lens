@@ -351,8 +351,9 @@ void main() {
 
       // Bottom sheet is now open
       expect(find.text('Engine & Move Details'), findsOneWidget);
-      expect(find.text('Full Move History'), findsOneWidget);
-      expect(find.text('Evaluation Trajectory'), findsOneWidget);
+      expect(find.text('ENGINE'), findsOneWidget);
+      expect(find.text('EVALUATION'), findsOneWidget);
+      expect(find.text('MOVES'), findsOneWidget);
     });
   });
 }

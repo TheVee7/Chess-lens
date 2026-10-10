@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../models/move_analysis.dart';
 
-/// Horizontally scrolling single-line strip of move chips with classification markers.
+/// Horizontally scrolling single-line strip of rounded-rectangle move chips.
 class MoveStripWidget extends StatefulWidget {
   final List<MoveAnalysis> moves;
   final int currentPlyIndex;
@@ -21,7 +21,7 @@ class MoveStripWidget extends StatefulWidget {
 
 class _MoveStripWidgetState extends State<MoveStripWidget> {
   final ScrollController _scrollController = ScrollController();
-  static const double _chipWidth = 78.0;
+  static const double _chipWidth = 82.0;
   static const double _chipSpacing = 6.0;
 
   @override
@@ -68,7 +68,7 @@ class _MoveStripWidgetState extends State<MoveStripWidget> {
       child: ListView.separated(
         controller: _scrollController,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: totalItems,
         separatorBuilder: (_, _) => const SizedBox(width: _chipSpacing),
         itemBuilder: (context, index) {
@@ -78,7 +78,7 @@ class _MoveStripWidgetState extends State<MoveStripWidget> {
               isSelected: isSelected,
               label: 'Start',
               symbol: null,
-              color: isSelected ? AppTheme.primary : AppTheme.textSecondary,
+              color: AppTheme.primary,
               onTap: () => widget.onTapMove?.call(-1),
             );
           }
@@ -111,25 +111,27 @@ class _MoveStripWidgetState extends State<MoveStripWidget> {
     required Color color,
     required VoidCallback onTap,
   }) {
+    final chipRadius = BorderRadius.circular(AppTheme.radiusInner);
+
     return SizedBox(
       width: _chipWidth,
       child: Material(
         color: isSelected
-            ? AppTheme.primary.withValues(alpha: 0.18)
-            : AppTheme.surfaceLight,
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            ? color.withValues(alpha: 0.16)
+            : AppTheme.surfaceRaised,
+        borderRadius: chipRadius,
         child: InkWell(
-          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          borderRadius: chipRadius,
           onTap: onTap,
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              borderRadius: chipRadius,
               border: Border.all(
-                color: isSelected ? AppTheme.primary : AppTheme.surfaceBorder,
+                color: isSelected ? color : AppTheme.border,
                 width: isSelected ? 1.5 : 1.0,
               ),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6),
             alignment: Alignment.center,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -141,6 +143,7 @@ class _MoveStripWidgetState extends State<MoveStripWidget> {
                       color: isSelected ? AppTheme.textPrimary : AppTheme.textSecondary,
                       fontSize: 12,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

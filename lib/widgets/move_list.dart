@@ -63,14 +63,14 @@ class _MoveListWidgetState extends State<MoveListWidget> {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.surfaceLight,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.surfaceBorder),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        border: Border.all(color: AppTheme.border),
       ),
       constraints: const BoxConstraints(maxHeight: 300),
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         itemCount: pairCount,
         itemExtent: 36.0,
         itemBuilder: (context, index) {
@@ -116,21 +116,22 @@ class _MoveRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: Row(
         children: [
-          // Move number.
+          // Move number
           SizedBox(
-            width: 34,
+            width: 36,
             child: Text(
               '$moveNumber.',
               style: const TextStyle(
-                color: AppTheme.textTertiary,
+                color: AppTheme.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
+                fontFeatures: [FontFeature.tabularFigures()],
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // White move.
+          // White move
           Expanded(
             child: _MoveCell(
               analysis: white,
@@ -139,7 +140,7 @@ class _MoveRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          // Black move.
+          // Black move
           Expanded(
             child: black != null
                 ? _MoveCell(
@@ -168,7 +169,8 @@ class _MoveCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol = _classificationSymbol(analysis.classification);
+    final symbol = AppTheme.classificationSymbol(analysis.classification);
+    final classColor = AppTheme.classificationColor(analysis.classification);
 
     return GestureDetector(
       onTap: onTap,
@@ -177,9 +179,14 @@ class _MoveCell extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primary.withValues(alpha: 0.2)
+              ? AppTheme.primaryContainer
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppTheme.radiusInner),
+          border: Border.all(
+            color: isSelected
+                ? AppTheme.primary.withValues(alpha: 0.3)
+                : Colors.transparent,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -188,10 +195,9 @@ class _MoveCell extends StatelessWidget {
               child: Text(
                 analysis.san,
                 style: TextStyle(
-                  color: isSelected ? AppTheme.accent : AppTheme.textPrimary,
-                  fontSize: 14,
-                  fontWeight:
-                      isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? AppTheme.primary : AppTheme.textPrimary,
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -202,8 +208,8 @@ class _MoveCell extends StatelessWidget {
               Text(
                 symbol,
                 style: TextStyle(
-                  color: _classificationColor(analysis.classification),
-                  fontSize: 12,
+                  color: classColor,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -212,39 +218,5 @@ class _MoveCell extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static String? _classificationSymbol(MoveClassification c) {
-    switch (c) {
-      case MoveClassification.blunder:
-        return '??';
-      case MoveClassification.mistake:
-        return '?';
-      case MoveClassification.inaccuracy:
-        return '?!';
-      case MoveClassification.best:
-        return '✓';
-      case MoveClassification.excellent:
-        return '✓';
-      default:
-        return null;
-    }
-  }
-
-  static Color _classificationColor(MoveClassification c) {
-    switch (c) {
-      case MoveClassification.blunder:
-        return AppTheme.blunder;
-      case MoveClassification.mistake:
-        return AppTheme.mistake;
-      case MoveClassification.inaccuracy:
-        return AppTheme.inaccuracy;
-      case MoveClassification.best:
-        return AppTheme.bestMove;
-      case MoveClassification.excellent:
-        return AppTheme.excellent;
-      default:
-        return AppTheme.textTertiary;
-    }
   }
 }
