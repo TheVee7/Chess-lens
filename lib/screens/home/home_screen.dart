@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import '../../core/theme/app_theme.dart';
 import '../../ai/api_key_manager.dart';
+import '../../widgets/ui/ui.dart';
 import '../pgn_import/pgn_import_screen.dart';
 import '../settings/settings_screen.dart';
 
@@ -22,9 +23,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // For sharing or opening when app is in memory
-    _intentDataStreamSubscription = ReceiveSharingIntent.instance.getMediaStream().listen((List<SharedMediaFile> value) {
+    _intentDataStreamSubscription = ReceiveSharingIntent.instance
+        .getMediaStream()
+        .listen((List<SharedMediaFile> value) {
       _handleSharedFiles(value);
     }, onError: (err) {
       debugPrint("getIntentDataStream error: $err");
@@ -39,13 +42,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _handleSharedFiles(List<SharedMediaFile> files) async {
     if (files.isEmpty) return;
-    
+
     final file = files.first;
     String pgnContent = '';
-    
+
     if (file.type == SharedMediaType.text) {
       pgnContent = file.path;
-    } else if (file.type == SharedMediaType.file && file.path.toLowerCase().endsWith('.pgn')) {
+    } else if (file.type == SharedMediaType.file &&
+        file.path.toLowerCase().endsWith('.pgn')) {
       try {
         pgnContent = await File(file.path).readAsString();
       } catch (e) {
@@ -54,7 +58,9 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       // It's an image or other unhandled type for now.
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Received unhandled file type: ${file.type.name}')),
+        SnackBar(
+          content: Text('Received unhandled file type: ${file.type.name}'),
+        ),
       );
       return;
     }
@@ -81,278 +87,302 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.screenMargin,
+            vertical: 16,
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 48),
-
-              // ── Logo ────────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primary.withValues(alpha: 0.4),
-                      blurRadius: 30,
-                      offset: const Offset(0, 8),
+              // ── Top Bar ──────────────────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Logo mark + wordmark
+                  Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.center_focus_strong_rounded,
+                              size: 18,
+                              color: AppTheme.onPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            'ChessLens',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.textPrimary,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.remove_red_eye_rounded,
-                  size: 48,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // ── Title ───────────────────────────────────────
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  'ChessLens',
-                  style: GoogleFonts.inter(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
-                    letterSpacing: -1,
                   ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Stockfish analyzes the chess.\nGemini explains the chess.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  color: AppTheme.textSecondary,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 48),
-
-              // ── Main action ─────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primary.withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 6),
+                  const SizedBox(width: 8),
+                  // Settings icon button
+                  AppIconButton(
+                    icon: Icons.settings_outlined,
+                    tooltip: 'Settings',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SettingsScreen(),
                       ),
-                    ],
+                    ),
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                      onTap: () => Navigator.push(
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Hero Card ───────────────────────────────────────────
+              AppCard(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Review any game',
+                      style: GoogleFonts.inter(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Stockfish checks the moves. Gemini explains them.',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: AppTheme.textSecondary,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    PrimaryButton(
+                      label: 'Analyze a game',
+                      showTrailingArrow: true,
+                      onPressed: () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const PgnImportScreen(),
                         ),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 18, horizontal: 16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppTheme.tileGap),
+
+              // ── Two tiles: AI Coach & Engine (Responsive row/col) ──
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 340;
+
+                  final aiTile = Consumer<ApiKeyManager>(
+                    builder: (context, keyMgr, _) {
+                      return AppCard(
+                        padding: const EdgeInsets.all(16),
+                        onTap: !keyMgr.hasKey
+                            ? () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const SettingsScreen(),
+                                  ),
+                                )
+                            : null,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.content_paste_rounded,
-                                color: Colors.white, size: 22),
-                            const SizedBox(width: 10),
-                            Flexible(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  'Analyze a Game',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'AI coach',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.textPrimary,
+                                    ),
                                   ),
                                 ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.auto_awesome_rounded,
+                                  size: 16,
+                                  color: keyMgr.hasKey
+                                      ? AppTheme.primary
+                                      : AppTheme.textSecondary,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            StatusChip(
+                              label: keyMgr.hasKey ? 'Connected' : 'No API key',
+                              variant: keyMgr.hasKey
+                                  ? StatusChipVariant.connected
+                                  : StatusChipVariant.warning,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              keyMgr.hasKey
+                                  ? 'Coach explanations enabled'
+                                  : 'Add your key in Settings for coach explanations',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                                height: 1.4,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+                      );
+                    },
+                  );
 
-              // ── Settings ────────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.settings_rounded, size: 20),
-                  label: const Text('Settings'),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const SettingsScreen(),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // ── API key status ──────────────────────────────
-              Consumer<ApiKeyManager>(
-                builder: (context, keyMgr, _) {
-                  return Container(
+                  final engineTile = AppCard(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceLight,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                      border: Border.all(color: AppTheme.surfaceBorder),
-                    ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: keyMgr.hasKey
-                                ? AppTheme.accent.withValues(alpha: 0.15)
-                                : AppTheme.warning.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            keyMgr.hasKey
-                                ? Icons.check_circle_rounded
-                                : Icons.key_rounded,
-                            color: keyMgr.hasKey
-                                ? AppTheme.accent
-                                : AppTheme.warning,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                keyMgr.hasKey
-                                    ? 'Gemini API Connected'
-                                    : 'Gemini API Key Missing',
-                                style: TextStyle(
-                                  color: keyMgr.hasKey
-                                      ? AppTheme.accent
-                                      : AppTheme.warning,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Engine',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 15,
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 14,
+                                  color: AppTheme.textPrimary,
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                keyMgr.hasKey
-                                    ? 'Coach explanations enabled'
-                                    : 'Add your key in Settings for coach explanations',
-                                style: const TextStyle(
-                                  color: AppTheme.textTertiary,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.memory_rounded,
+                              size: 16,
+                              color: AppTheme.primary,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        const StatusChip(
+                          label: 'Offline',
+                          variant: StatusChipVariant.connected,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Stockfish, runs offline on your phone',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                            height: 1.4,
                           ),
                         ),
                       ],
                     ),
                   );
+
+                  if (isNarrow) {
+                    return Column(
+                      children: [
+                        aiTile,
+                        const SizedBox(height: AppTheme.tileGap),
+                        engineTile,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: aiTile),
+                      const SizedBox(width: AppTheme.tileGap),
+                      Expanded(child: engineTile),
+                    ],
+                  );
                 },
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: AppTheme.tileGap),
 
-              // ── Features ────────────────────────────────────
-              const _FeatureTile(
-                icon: Icons.speed_rounded,
-                color: AppTheme.accent,
-                title: 'Local Stockfish',
-                subtitle: 'Analyze entirely offline, no server needed',
+              // ── One wide tile: Game Report ──────────────────────────
+              AppCard(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceRaised,
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusInner),
+                        border: Border.all(
+                          color: AppTheme.border,
+                          width: 1,
+                        ),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.insights_rounded,
+                          size: 20,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Game report',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Accuracy, move quality and an evaluation graph.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              const _FeatureTile(
-                icon: Icons.auto_awesome_rounded,
-                color: AppTheme.primary,
-                title: 'Gemini Coach',
-                subtitle: 'Human-level explanations of important moves',
-              ),
-              const SizedBox(height: 12),
-              const _FeatureTile(
-                icon: Icons.insights_rounded,
-                color: AppTheme.warning,
-                title: 'Quick Reports',
-                subtitle: 'Accuracy, classifications, and evaluation graphs',
-              ),
-              const SizedBox(height: 48),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _FeatureTile extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String subtitle;
-
-  const _FeatureTile({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.surfaceBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14)),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style: const TextStyle(
-                        color: AppTheme.textTertiary, fontSize: 12)),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
