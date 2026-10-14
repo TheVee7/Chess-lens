@@ -6,6 +6,7 @@ import '../models/game_analysis.dart';
 import '../models/game_explanation.dart';
 import '../engine/analysis_manager.dart';
 import '../ai/gemini_service.dart';
+import '../ai/rule_based_explainer.dart';
 
 /// Status of a Gemini explanation for an important move.
 enum ExplanationStatus { waiting, generating, done, failed }
@@ -42,12 +43,14 @@ class GameController extends ChangeNotifier {
   final Map<int, MoveExplanation> _explanations = {};
   final Map<int, ExplanationStatus> _explanationStatus = {};
   final Map<int, String> _moveErrors = {};
+  final Set<int> _aiExplained = {};
   GameReview? _gameReview;
 
   Map<int, MoveExplanation> get explanations => _explanations;
   Map<int, ExplanationStatus> get explanationStatus => _explanationStatus;
   Map<int, String> get moveErrors => _moveErrors;
   GameReview? get gameReview => _gameReview;
+  bool isAiExplained(int plyIndex) => _aiExplained.contains(plyIndex);
 
   bool _geminiRunning = false;
   bool get geminiRunning => _geminiRunning;
@@ -63,6 +66,7 @@ class GameController extends ChangeNotifier {
     _explanations.clear();
     _explanationStatus.clear();
     _moveErrors.clear();
+    _aiExplained.clear();
     _isInvalidKey = false;
     _gameReview = null;
     notifyListeners();
@@ -117,9 +121,21 @@ class GameController extends ChangeNotifier {
     analysisManager.addListener(_onAnalysisUpdate);
     await analysisManager.analyzeGame(_game!);
     analysisManager.removeListener(_onAnalysisUpdate);
+    generateOfflineExplanations();
   }
 
   void _onAnalysisUpdate() => notifyListeners();
+
+  /// Generate deterministic rule-based offline explanations for critical moves.
+  void generateOfflineExplanations() {
+    if (analysis == null) return;
+    for (final m in analysis!.criticalMoments) {
+      _explanations.putIfAbsent(m.plyIndex, () => RuleBasedExplainer.explain(m));
+      _explanationStatus[m.plyIndex] = ExplanationStatus.done;
+    }
+    _gameReview ??= RuleBasedExplainer.review(analysis!.moves);
+    notifyListeners();
+  }
 
   // ── Gemini explanations ─────────────────────────────────────
 
@@ -140,12 +156,6 @@ class GameController extends ChangeNotifier {
     final importantMoves = criticalMoves.take(15).toList()
       ..sort((a, b) => a.plyIndex.compareTo(b.plyIndex));
 
-    for (final m in importantMoves) {
-      _explanationStatus[m.plyIndex] = ExplanationStatus.generating;
-      _moveErrors.remove(m.plyIndex);
-    }
-    notifyListeners();
-
     // Send the whole thing to Gemini API in a single request
     final result = await gemini.explainBatchResult(
       importantMoves,
@@ -158,9 +168,10 @@ class GameController extends ChangeNotifier {
           final explanation = data.moves[m.plyIndex];
           if (explanation != null) {
             _explanations[m.plyIndex] = explanation;
+            _aiExplained.add(m.plyIndex);
             _explanationStatus[m.plyIndex] = ExplanationStatus.done;
             _moveErrors.remove(m.plyIndex);
-          } else {
+          } else if (!_explanations.containsKey(m.plyIndex)) {
             _explanationStatus[m.plyIndex] = ExplanationStatus.failed;
             _moveErrors[m.plyIndex] = 'Move explanation missing from response';
           }
@@ -170,8 +181,10 @@ class GameController extends ChangeNotifier {
         }
       case Failure(:final error):
         for (final m in importantMoves) {
-          _explanationStatus[m.plyIndex] = ExplanationStatus.failed;
-          _moveErrors[m.plyIndex] = error.description;
+          if (!_explanations.containsKey(m.plyIndex)) {
+            _explanationStatus[m.plyIndex] = ExplanationStatus.failed;
+            _moveErrors[m.plyIndex] = error.description;
+          }
         }
         _geminiError = error.description;
         if (error.type == GeminiErrorType.invalidKey) {
@@ -194,6 +207,7 @@ class GameController extends ChangeNotifier {
     switch (result) {
       case Success<MoveExplanation>(:final data):
         _explanations[move.plyIndex] = data;
+        _aiExplained.add(move.plyIndex);
         _explanationStatus[move.plyIndex] = ExplanationStatus.done;
         _moveErrors.remove(move.plyIndex);
       case Failure<MoveExplanation>(:final error):

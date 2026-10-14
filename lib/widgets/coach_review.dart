@@ -19,6 +19,8 @@ class CoachReviewWidget extends StatelessWidget {
   final bool isGeminiRunning;
   final double height;
   final int? plyIndex;
+  final bool isAiExplained;
+  final bool showOfflineNotice;
 
   const CoachReviewWidget({
     super.key,
@@ -33,6 +35,8 @@ class CoachReviewWidget extends StatelessWidget {
     this.isGeminiRunning = false,
     this.height = 160.0,
     this.plyIndex,
+    this.isAiExplained = false,
+    this.showOfflineNotice = false,
   });
 
   @override
@@ -125,7 +129,6 @@ class CoachReviewWidget extends StatelessWidget {
     }
 
     final m = currentMove!;
-    final isAiWritten = status == ExplanationStatus.done && explanation != null;
 
     return FittedBox(
       fit: BoxFit.scaleDown,
@@ -159,8 +162,8 @@ class CoachReviewWidget extends StatelessWidget {
             ),
           ),
 
-          // Gemini AI badge
-          if (isAiWritten) ...[
+          // AI badge
+          if (isAiExplained) ...[
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -175,7 +178,7 @@ class CoachReviewWidget extends StatelessWidget {
                   Icon(Icons.auto_awesome_rounded, color: AppTheme.primary, size: 10),
                   SizedBox(width: 3),
                   Text(
-                    'Gemini',
+                    'AI',
                     style: TextStyle(
                       color: AppTheme.primary,
                       fontSize: 9,
@@ -231,7 +234,107 @@ class CoachReviewWidget extends StatelessWidget {
 
     final m = currentMove!;
 
-    // 2. Non-critical move (no AI explanation triggered)
+    // 2. Existing explanation is always shown first
+    if (explanation != null) {
+      final exp = explanation!;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (showOfflineNotice) ...[
+            const Padding(
+              padding: EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline_rounded,
+                      size: 13, color: AppTheme.textSecondary),
+                  SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'AI coach unavailable, showing offline explanations',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          Text(
+            exp.explanation,
+            style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 13,
+              height: 1.45,
+            ),
+          ),
+          if (exp.betterMove.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceRaised,
+                borderRadius: BorderRadius.circular(AppTheme.radiusInner),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.lightbulb_rounded,
+                      color: AppTheme.primary, size: 15),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Better: ${exp.betterMove}',
+                      style: const TextStyle(
+                        color: AppTheme.primary,
+                        fontSize: 12,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (exp.lesson.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceRaised,
+                borderRadius: BorderRadius.circular(AppTheme.radiusInner),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.menu_book_rounded,
+                      color: AppTheme.inaccuracy, size: 15),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      exp.lesson,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    // 3. Non-critical move (no explanation triggered)
     if (!m.isImportant) {
       final isBest = m.classification == MoveClassification.best;
       final classColor = AppTheme.classificationColor(m.classification);
@@ -277,7 +380,7 @@ class CoachReviewWidget extends StatelessWidget {
       );
     }
 
-    // 3. Important move without API key (when not already attempted or failed)
+    // 4. Important move without API key (when not already explained)
     if (!hasApiKey && status == ExplanationStatus.waiting) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -313,7 +416,7 @@ class CoachReviewWidget extends StatelessWidget {
       );
     }
 
-    // 4. Important move states by ExplanationStatus
+    // 5. Important move states by ExplanationStatus
     switch (status) {
       case ExplanationStatus.waiting:
       case ExplanationStatus.generating:
@@ -351,87 +454,12 @@ class CoachReviewWidget extends StatelessWidget {
         );
 
       case ExplanationStatus.done:
-        if (explanation == null) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 4),
-            child: Text(
-              'No explanation available for this move.',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-            ),
-          );
-        }
-
-        final exp = explanation!;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              exp.explanation,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 13,
-                height: 1.45,
-              ),
-            ),
-            if (exp.betterMove.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceRaised,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusInner),
-                  border: Border.all(color: AppTheme.border),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.lightbulb_rounded, color: AppTheme.primary, size: 15),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Better: ${exp.betterMove}',
-                        style: const TextStyle(
-                          color: AppTheme.primary,
-                          fontSize: 12,
-                          height: 1.35,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            if (exp.lesson.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceRaised,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusInner),
-                  border: Border.all(color: AppTheme.border),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.menu_book_rounded, color: AppTheme.inaccuracy, size: 15),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        exp.lesson,
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                          height: 1.35,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          child: Text(
+            'No explanation available for this move.',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+          ),
         );
 
       case ExplanationStatus.failed:

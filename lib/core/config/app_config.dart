@@ -24,8 +24,8 @@ class AppConfig {
       'https://aistudio.google.com/apikey';
 
   // ── Stockfish defaults ──────────────────────────────────────────
-  static const int defaultEngineDepth = 18;
-  static const int defaultMultiPV = 2;
+  static const int defaultEngineDepth = 10;
+  static const int defaultMultiPV = 1;
   static const bool defaultShowBestMoveArrow = true;
   static const bool defaultAutoAnalyze = true;
 
