@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../core/config/app_config.dart';
 import '../models/move_analysis.dart';
 import '../models/game_explanation.dart';
 import 'gemini_prompt.dart';
+
+import 'model_resolver.dart';
 
 /// Categories of Gemini API failures.
 enum GeminiErrorType {
@@ -13,6 +16,7 @@ enum GeminiErrorType {
   blocked,
   badResponse,
   server,
+  modelNotFound,
   unknown,
 }
 
@@ -42,6 +46,8 @@ class GeminiError {
         return 'Malformed response format received from model.';
       case GeminiErrorType.server:
         return 'Gemini server error (${statusCode ?? '5xx'}). Please retry shortly.';
+      case GeminiErrorType.modelNotFound:
+        return 'Gemini model not found (404). Could not resolve an active Flash model.';
       case GeminiErrorType.unknown:
         return message.isNotEmpty ? message : 'An unexpected error occurred.';
     }
@@ -70,8 +76,9 @@ class Failure<T> extends GeminiResult<T> {
 /// All calls go directly from device to Google APIs without any intermediate backend.
 class GeminiService {
   final String apiKey;
-  final String model;
+  final String? _explicitModel;
   final http.Client _client;
+  String? _resolvedModel;
 
   String? lastError;
 
@@ -79,9 +86,10 @@ class GeminiService {
     required this.apiKey,
     String? model,
     http.Client? client,
-  })  : model = model ?? AppConfig.geminiModel,
+  })  : _explicitModel = model,
         _client = client ?? http.Client();
 
+  String get model => _resolvedModel ?? _explicitModel ?? AppConfig.geminiModel;
   String get currentModel => model;
 
   // ── Public API ──────────────────────────────────────────────
@@ -156,6 +164,49 @@ class GeminiService {
     };
   }
 
+  /// Explain a batch of moves (and optionally review) in a single API call.
+  /// Returns a record with a map of explanations keyed by ply_index
+  /// and an optional GameReview.
+  Future<GeminiResult<({Map<int, MoveExplanation> moves, GameReview? review})>>
+      explainBatchResult(List<MoveAnalysis> batch,
+          {List<MoveAnalysis>? reviewMoves}) async {
+    lastError = null;
+    final prompt =
+        GeminiPrompt.movesBatch(batch, reviewMoves: reviewMoves);
+    final tokens = reviewMoves != null ? 4096 : 2048;
+    final callResult = await _call(prompt, maxOutputTokens: tokens);
+
+    switch (callResult) {
+      case Success<String>(:final data):
+        try {
+          final json = jsonDecode(data) as Map<String, dynamic>;
+          final movesJson = json['moves'] as List<dynamic>;
+          final movesMap = <int, MoveExplanation>{};
+          for (final entry in movesJson) {
+            final obj = entry as Map<String, dynamic>;
+            final plyIndex = obj['ply_index'] as int;
+            movesMap[plyIndex] = MoveExplanation.fromJson(obj);
+          }
+          GameReview? review;
+          if (json.containsKey('review') && json['review'] is Map) {
+            review = GameReview.fromJson(
+                json['review'] as Map<String, dynamic>);
+          }
+          return Success((moves: movesMap, review: review));
+        } catch (e) {
+          final err = GeminiError(
+            type: GeminiErrorType.badResponse,
+            message: 'Failed to parse batch JSON: $e',
+          );
+          lastError = err.description;
+          return Failure(err);
+        }
+      case Failure<String>(:final error):
+        lastError = error.description;
+        return Failure(error);
+    }
+  }
+
   /// Detailed connectivity and key validation test.
   Future<GeminiResult<bool>> testKeyResult() async {
     final result = await _call('Respond with JSON: {"status":"ok"}', isTest: true);
@@ -183,7 +234,8 @@ class GeminiService {
 
   // ── Internals ───────────────────────────────────────────────
 
-  Future<GeminiResult<String>> _call(String prompt, {bool isTest = false}) async {
+  Future<GeminiResult<String>> _call(String prompt,
+      {bool isTest = false, int maxOutputTokens = 1024}) async {
     final cleanKey = apiKey.trim();
     if (cleanKey.isEmpty) {
       return const Failure(GeminiError(
@@ -192,7 +244,9 @@ class GeminiService {
       ));
     }
 
-    final url = Uri.parse('${AppConfig.geminiBaseUrl}/$model:generateContent');
+    _resolvedModel ??= _explicitModel ??
+        await ModelResolver.getCachedModel(cleanKey) ??
+        AppConfig.geminiModel;
 
     final body = jsonEncode({
       if (!isTest)
@@ -210,15 +264,29 @@ class GeminiService {
       ],
       'generationConfig': {
         'temperature': 0.3,
-        'maxOutputTokens': 1024,
+        'maxOutputTokens': maxOutputTokens,
         'responseMimeType': 'application/json',
       },
     });
 
     const maxTries = 3;
     GeminiError? lastError;
+    bool didRetryModelNotFound = false;
 
     for (int attempt = 1; attempt <= maxTries; attempt++) {
+      final url =
+          Uri.parse('${AppConfig.geminiBaseUrl}/$model:generateContent');
+
+      final stopwatch = Stopwatch()..start();
+      if (kDebugMode) {
+        debugPrint('╔══════════════════════ [GEMINI REQUEST] ══════════════════════');
+        debugPrint('║ Model   : $model (Attempt $attempt/$maxTries)');
+        debugPrint('║ URL     : $url');
+        debugPrint('║ Prompt  :');
+        debugPrint(prompt);
+        debugPrint('╚══════════════════════════════════════════════════════════════');
+      }
+
       try {
         final response = await _client
             .post(
@@ -231,6 +299,18 @@ class GeminiService {
             )
             .timeout(const Duration(seconds: 25));
 
+        stopwatch.stop();
+        final elapsedMs = stopwatch.elapsedMilliseconds;
+        final elapsedSec = (elapsedMs / 1000).toStringAsFixed(2);
+        if (kDebugMode) {
+          debugPrint('╔══════════════════════ [GEMINI RESPONSE] ═════════════════════');
+          debugPrint('║ Status  : ${response.statusCode}');
+          debugPrint('║ Latency : ${elapsedMs}ms (${elapsedSec}s)');
+          debugPrint('║ Body    :');
+          debugPrint(response.body);
+          debugPrint('╚══════════════════════════════════════════════════════════════');
+        }
+
         if (response.statusCode == 200) {
           try {
             final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -238,13 +318,14 @@ class GeminiService {
             if (candidates == null || candidates.isEmpty) {
               return const Failure(GeminiError(
                 type: GeminiErrorType.blocked,
-                message: 'No candidates returned (response may be blocked by safety filters)',
+                message:
+                    'No candidates returned (response may be blocked by safety filters)',
                 statusCode: 200,
               ));
             }
 
-            final content =
-                (candidates[0] as Map<String, dynamic>)['content'] as Map<String, dynamic>?;
+            final content = (candidates[0]
+                as Map<String, dynamic>)['content'] as Map<String, dynamic>?;
             final parts = content?['parts'] as List<dynamic>?;
             if (parts == null || parts.isEmpty) {
               return const Failure(GeminiError(
@@ -254,7 +335,8 @@ class GeminiService {
               ));
             }
 
-            final text = (parts[0] as Map<String, dynamic>)['text'] as String? ?? '';
+            final text =
+                (parts[0] as Map<String, dynamic>)['text'] as String? ?? '';
             final jsonStr = _extractJson(text);
             return Success(jsonStr);
           } catch (e) {
@@ -275,6 +357,30 @@ class GeminiService {
             errorMessage = errObj['message']?.toString() ?? errorMessage;
           }
         } catch (_) {}
+
+        final isModelNotFound = statusCode == 404 ||
+            (errorMessage.toLowerCase().contains('model') &&
+                (errorMessage.toLowerCase().contains('not found') ||
+                    errorMessage.toLowerCase().contains('deprecated')));
+
+        if (isModelNotFound) {
+          if (!didRetryModelNotFound) {
+            didRetryModelNotFound = true;
+            await ModelResolver.clearCache();
+            _resolvedModel = await ModelResolver.resolveModel(
+              apiKey: cleanKey,
+              client: _client,
+              forceRefresh: true,
+            );
+            continue;
+          } else {
+            return Failure(GeminiError(
+              type: GeminiErrorType.modelNotFound,
+              message: errorMessage,
+              statusCode: statusCode,
+            ));
+          }
+        }
 
         if (statusCode == 400 || statusCode == 403) {
           return Failure(GeminiError(
@@ -302,18 +408,25 @@ class GeminiService {
           ));
         }
       } catch (e) {
+        stopwatch.stop();
+        if (kDebugMode) {
+          debugPrint('╔══════════════════════ [GEMINI ERROR] ════════════════════════');
+          debugPrint('║ Failed in: ${stopwatch.elapsedMilliseconds}ms');
+          debugPrint('║ Error    : $e');
+          debugPrint('╚══════════════════════════════════════════════════════════════');
+        }
         lastError = GeminiError(
           type: GeminiErrorType.network,
           message: 'Connection failed: $e',
         );
       }
 
-      // Retry with exponential backoff on retryable errors
+      // Retry with longer backoff on retryable errors (especially 429)
       if (attempt < maxTries &&
           (lastError.type == GeminiErrorType.rateLimited ||
               lastError.type == GeminiErrorType.server ||
               lastError.type == GeminiErrorType.network)) {
-        final backoffMs = 400 * (1 << (attempt - 1));
+        final backoffMs = 15000 * attempt;
         await Future.delayed(Duration(milliseconds: backoffMs));
       } else {
         break;
