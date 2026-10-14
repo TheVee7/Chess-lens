@@ -259,6 +259,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               );
             },
             isGeminiRunning: controller.geminiRunning,
+            isAiExplained: currentMove != null &&
+                controller.isAiExplained(currentMove.plyIndex),
+            showOfflineNotice: controller.geminiError != null &&
+                currentMove != null &&
+                !controller.isAiExplained(currentMove.plyIndex) &&
+                controller.explanations[currentMove.plyIndex] != null,
           ),
         ),
         const SizedBox(height: 6),
@@ -483,6 +489,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                       );
                     },
                     isGeminiRunning: controller.geminiRunning,
+                    isAiExplained: currentMove != null &&
+                        controller.isAiExplained(currentMove.plyIndex),
+                    showOfflineNotice: controller.geminiError != null &&
+                        currentMove != null &&
+                        !controller.isAiExplained(currentMove.plyIndex) &&
+                        controller.explanations[currentMove.plyIndex] != null,
                   ),
                 ),
                 const SizedBox(height: 6),
