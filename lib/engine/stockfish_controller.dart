@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
 import 'package:stockfish/stockfish.dart';
+
+import '../core/config/app_config.dart';
 import 'uci_parser.dart';
 
 /// Controller for the Stockfish engine via the `stockfish` Flutter plugin.
@@ -8,7 +12,7 @@ import 'uci_parser.dart';
 /// Usage:
 ///   final sf = StockfishController();
 ///   await sf.init();
-///   final info = await sf.analyze(fen: '...', depth: 18, multiPv: 2);
+///   final info = await sf.analyze(fen: '...', movetime: 300, multiPv: 1);
 ///   sf.dispose();
 /// Exception thrown when the Stockfish engine encounters an error or timeout.
 class EngineException implements Exception {
@@ -21,11 +25,18 @@ class EngineException implements Exception {
 
 /// Abstract interface for a chess analysis engine to facilitate testing and decoupling.
 abstract class Engine {
+  int get hash;
+  set hash(int value);
+  int get threads;
+  set threads(int value);
+
   Future<void> init();
   Future<void> newGame();
+  Future<void> setOptions({int? hash, int? threads});
   Future<AnalysisResult> analyze({
     required String fen,
-    required int depth,
+    int? depth,
+    int? movetime,
     int multiPv = 1,
   });
   void stop();
@@ -55,7 +66,34 @@ class StockfishController implements Engine {
   bool _cancelled = false;
   int? _currentMultiPv;
   bool _isSearching = false;
+  bool _isEngineSearching = false;
   int _currentSearchId = 0;
+  Stopwatch? _currentStopwatch;
+
+  int _hash = AppConfig.defaultHashMemory;
+  int _threads = AppConfig.defaultCpuThreads;
+  int? _currentHash;
+  int? _currentThreads;
+
+  StockfishController({int? hash, int? threads})
+    : _hash = hash ?? AppConfig.defaultHashMemory,
+      _threads = threads ?? AppConfig.defaultCpuThreads;
+
+  @override
+  int get hash => _hash;
+  @override
+  set hash(int value) {
+    if (_isSearching) return;
+    _hash = value;
+  }
+
+  @override
+  int get threads => _threads;
+  @override
+  set threads(int value) {
+    if (_isSearching) return;
+    _threads = value;
+  }
 
   int get currentSearchId => _currentSearchId;
 
@@ -73,19 +111,35 @@ class StockfishController implements Engine {
     _readyOkCompleter = Completer<void>();
     _sendStdin('isready');
     try {
-      await _readyOkCompleter!.future.timeout(const Duration(seconds: 5), onTimeout: () {});
+      await _readyOkCompleter!.future.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {},
+      );
     } catch (_) {}
   }
 
   Future<void> _stopPreviousSearch() async {
-    if (!_isSearching) return;
+    if (!_isSearching && !_isEngineSearching) return;
     _isSearching = false;
     _sendStdin('stop');
     if (_stopCompleter != null && !_stopCompleter!.isCompleted) {
       try {
-        await _stopCompleter!.future.timeout(const Duration(milliseconds: 500));
+        await _stopCompleter!.future.timeout(
+          const Duration(milliseconds: 1000),
+        );
       } catch (_) {}
     }
+    _isEngineSearching = false;
+
+    // Drain and synchronize engine queue with isready -> readyok
+    _readyOkCompleter = Completer<void>();
+    _sendStdin('isready');
+    try {
+      await _readyOkCompleter!.future.timeout(
+        const Duration(milliseconds: 1000),
+        onTimeout: () {},
+      );
+    } catch (_) {}
   }
 
   /// Initialize the Stockfish process.
@@ -112,13 +166,27 @@ class StockfishController implements Engine {
       await _uciOkCompleter!.future.timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          throw const EngineException('Timed out waiting for uciok from Stockfish');
+          throw const EngineException(
+            'Timed out waiting for uciok from Stockfish',
+          );
         },
       );
     } catch (e) {
       dispose();
       if (e is EngineException) rethrow;
       throw EngineException('Failed to initialize UCI engine: $e');
+    }
+
+    // Apply Threads, Hash, and MultiPV options after uciok
+    try {
+      _sendStdin('setoption name Threads value $_threads');
+      _currentThreads = _threads;
+      _sendStdin('setoption name Hash value $_hash');
+      _currentHash = _hash;
+      _sendStdin('setoption name MultiPV value 1');
+      _currentMultiPv = 1;
+    } catch (_) {
+      // Handle unsupported options or engine errors safely
     }
 
     // Ensure engine is ready for commands
@@ -128,7 +196,9 @@ class StockfishController implements Engine {
       await _readyOkCompleter!.future.timeout(
         const Duration(seconds: 5),
         onTimeout: () {
-          throw const EngineException('Timed out waiting for readyok after init');
+          throw const EngineException(
+            'Timed out waiting for readyok after init',
+          );
         },
       );
     } catch (e) {
@@ -138,6 +208,52 @@ class StockfishController implements Engine {
     }
 
     _ready = true;
+  }
+
+  /// Update engine options (Hash and Threads).
+  ///
+  /// Changes are not applied if an active search is running to avoid interference.
+  @override
+  Future<void> setOptions({int? hash, int? threads}) async {
+    if (_isSearching) {
+      // Ensure configuration changes cannot interfere with an active search
+      return;
+    }
+
+    if (hash != null) _hash = hash;
+    if (threads != null) _threads = threads;
+
+    if (!_ready || _stockfish == null) {
+      // Options will be applied when init() runs after uciok
+      return;
+    }
+
+    bool changed = false;
+    if (_currentThreads != _threads) {
+      try {
+        _sendStdin('setoption name Threads value $_threads');
+        _currentThreads = _threads;
+        changed = true;
+      } catch (_) {}
+    }
+    if (_currentHash != _hash) {
+      try {
+        _sendStdin('setoption name Hash value $_hash');
+        _currentHash = _hash;
+        changed = true;
+      } catch (_) {}
+    }
+
+    if (changed) {
+      _readyOkCompleter = Completer<void>();
+      _sendStdin('isready');
+      try {
+        await _readyOkCompleter!.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {},
+        );
+      } catch (_) {}
+    }
   }
 
   Future<Stockfish> _acquireStockfish() async {
@@ -193,13 +309,16 @@ class StockfishController implements Engine {
         } else {
           // Ignore bound lines when an exact score is already present
           final existing = _currentInfoLines[info.multiPv];
-          if (existing == null || (existing.isBound && info.depth >= existing.depth)) {
+          if (existing == null ||
+              (existing.isBound && info.depth >= existing.depth)) {
             _currentInfoLines[info.multiPv] = info;
           }
         }
       }
-    } else if (trimmed.startsWith('bestmove ') || trimmed.startsWith('bestmove')) {
+    } else if (trimmed.startsWith('bestmove ') ||
+        trimmed.startsWith('bestmove')) {
       final bm = UciParser.parseBestMove(trimmed);
+      _isEngineSearching = false;
       if (_stopCompleter != null && !_stopCompleter!.isCompleted) {
         _stopCompleter!.complete();
       }
@@ -207,12 +326,21 @@ class StockfishController implements Engine {
       if (_isSearching) {
         _isSearching = false;
         _currentBestMove = bm;
+        final elapsed = _currentStopwatch?.elapsedMilliseconds;
+        final depthReached = _currentInfoLines.values.fold<int>(
+          0,
+          (max, line) => math.max(max, line.depth),
+        );
         if (_analysisCompleter != null && !_analysisCompleter!.isCompleted) {
-          _analysisCompleter!.complete(AnalysisResult(
-            bestMove: _currentBestMove ?? '',
-            lines: _currentInfoLines.values.toList(),
-            partial: false,
-          ));
+          _analysisCompleter!.complete(
+            AnalysisResult(
+              bestMove: _currentBestMove ?? '',
+              lines: _currentInfoLines.values.toList(),
+              partial: false,
+              depthReached: depthReached,
+              elapsedTimeMs: elapsed,
+            ),
+          );
         }
       }
     }
@@ -222,8 +350,9 @@ class StockfishController implements Engine {
   @override
   Future<AnalysisResult> analyze({
     required String fen,
-    int depth = 18,
-    int multiPv = 2,
+    int? depth,
+    int? movetime,
+    int multiPv = 1,
   }) async {
     if (_stockfish == null || !_ready) {
       throw const EngineException('Stockfish is not initialized or ready');
@@ -239,48 +368,130 @@ class StockfishController implements Engine {
       return const AnalysisResult(bestMove: '', lines: []);
     }
 
+    // Ensure options are in sync before analysis starts
+    bool optionsChanged = false;
+    if (_currentThreads != _threads) {
+      try {
+        _sendStdin('setoption name Threads value $_threads');
+        _currentThreads = _threads;
+        optionsChanged = true;
+      } catch (_) {}
+    }
+    if (_currentHash != _hash) {
+      try {
+        _sendStdin('setoption name Hash value $_hash');
+        _currentHash = _hash;
+        optionsChanged = true;
+      } catch (_) {}
+    }
+    if (optionsChanged) {
+      _readyOkCompleter = Completer<void>();
+      _sendStdin('isready');
+      try {
+        await _readyOkCompleter!.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {},
+        );
+      } catch (_) {}
+    }
+
     if (_currentMultiPv != multiPv) {
       _sendStdin('setoption name MultiPV value $multiPv');
       _currentMultiPv = multiPv;
+      _readyOkCompleter = Completer<void>();
+      _sendStdin('isready');
+      try {
+        await _readyOkCompleter!.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {},
+        );
+      } catch (_) {}
     }
     _sendStdin('position fen $fen');
 
     _currentSearchId++;
     _isSearching = true;
+    _isEngineSearching = true;
     _stopCompleter = Completer<void>();
     _analysisCompleter = Completer<AnalysisResult>();
-    _sendStdin('go depth $depth');
+    _currentStopwatch = Stopwatch()..start();
 
-    final timeoutDuration = Duration(seconds: math.max(30, depth * 3));
+    final Duration timeoutDuration;
+    if (movetime != null) {
+      _sendStdin('go movetime $movetime');
+      // Watchdog timeout gives engine headroom to terminate search and respond
+      timeoutDuration = Duration(milliseconds: math.max(3000, movetime * 3));
+    } else {
+      final targetDepth = depth ?? AppConfig.defaultEngineDepth;
+      _sendStdin('go depth $targetDepth');
+      timeoutDuration = Duration(seconds: math.max(10, targetDepth * 3));
+    }
 
     try {
-      return await _analysisCompleter!.future.timeout(timeoutDuration);
+      final result = await _analysisCompleter!.future.timeout(timeoutDuration);
+      debugPrint(
+        'Stockfish: fen=$fen movetime=$movetime depthReached=${result.depthReached} '
+        'elapsed=${result.elapsedTimeMs}ms bestmove=${result.bestMove}',
+      );
+      return result;
     } on TimeoutException {
-      // Scaled timeout reached: stop engine and collect partial info
+      // Watchdog timeout reached: stop engine and collect partial info
       _isSearching = false;
       _sendStdin('stop');
 
       if (_stopCompleter != null && !_stopCompleter!.isCompleted) {
         try {
-          await _stopCompleter!.future.timeout(const Duration(milliseconds: 500));
+          await _stopCompleter!.future.timeout(
+            const Duration(milliseconds: 1000),
+          );
         } catch (_) {}
       }
+      _isEngineSearching = false;
 
-      final fallbackMove = _currentBestMove ??
+      // Drain and synchronize engine queue with isready -> readyok
+      _readyOkCompleter = Completer<void>();
+      _sendStdin('isready');
+      try {
+        await _readyOkCompleter!.future.timeout(
+          const Duration(milliseconds: 1000),
+          onTimeout: () {},
+        );
+      } catch (_) {}
+
+      final elapsed = _currentStopwatch?.elapsedMilliseconds;
+      final depthReached = _currentInfoLines.values.fold<int>(
+        0,
+        (max, line) => math.max(max, line.depth),
+      );
+
+      final fallbackMove =
+          _currentBestMove ??
           (_currentInfoLines[1]?.pv.isNotEmpty == true
               ? _currentInfoLines[1]!.pv.first
               : '');
+
+      debugPrint(
+        'Stockfish timeout: fen=$fen movetime=$movetime depthReached=$depthReached '
+        'elapsed=${elapsed}ms bestmove=$fallbackMove (partial)',
+      );
 
       return AnalysisResult(
         bestMove: fallbackMove,
         lines: _currentInfoLines.values.toList(),
         partial: true,
+        depthReached: depthReached,
+        elapsedTimeMs: elapsed,
       );
     } catch (e) {
       return AnalysisResult(
         bestMove: _currentBestMove ?? '',
         lines: _currentInfoLines.values.toList(),
         partial: true,
+        depthReached: _currentInfoLines.values.fold<int>(
+          0,
+          (max, line) => math.max(max, line.depth),
+        ),
+        elapsedTimeMs: _currentStopwatch?.elapsedMilliseconds,
       );
     }
   }
@@ -288,16 +499,23 @@ class StockfishController implements Engine {
   @override
   void stop() {
     _cancelled = true;
-    if (_isSearching) {
+    if (_isSearching || _isEngineSearching) {
       _isSearching = false;
       _sendStdin('stop');
     }
     if (_analysisCompleter != null && !_analysisCompleter!.isCompleted) {
-      _analysisCompleter!.complete(AnalysisResult(
-        bestMove: _currentBestMove ?? '',
-        lines: _currentInfoLines.values.toList(),
-        partial: true,
-      ));
+      _analysisCompleter!.complete(
+        AnalysisResult(
+          bestMove: _currentBestMove ?? '',
+          lines: _currentInfoLines.values.toList(),
+          partial: true,
+          depthReached: _currentInfoLines.values.fold<int>(
+            0,
+            (max, line) => math.max(max, line.depth),
+          ),
+          elapsedTimeMs: _currentStopwatch?.elapsedMilliseconds,
+        ),
+      );
     }
   }
 
@@ -308,7 +526,10 @@ class StockfishController implements Engine {
     _isDisposed = true;
     _ready = false;
     _isSearching = false;
+    _isEngineSearching = false;
     _currentMultiPv = null;
+    _currentHash = null;
+    _currentThreads = null;
 
     try {
       _subscription?.cancel();
@@ -335,15 +556,22 @@ class StockfishController implements Engine {
 
 /// Result of a single position analysis.
 class AnalysisResult {
-  final String bestMove;       // UCI best move
-  final List<UciInfo> lines;   // one per MultiPV line
+  final String bestMove; // UCI best move
+  final List<UciInfo> lines; // one per MultiPV line
   final bool partial;
+  final int? depthReached;
+  final int? elapsedTimeMs;
 
   const AnalysisResult({
     required this.bestMove,
     required this.lines,
     this.partial = false,
+    this.depthReached,
+    this.elapsedTimeMs,
   });
+
+  int get actualDepth =>
+      depthReached ?? (lines.isNotEmpty ? lines.first.depth : 0);
 
   /// The top line's centipawn score (from engine / side-to-move perspective).
   int? get scoreCp => lines.isNotEmpty ? lines.first.score : null;

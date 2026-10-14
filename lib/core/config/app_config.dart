@@ -20,19 +20,28 @@ class AppConfig {
       'https://www.youtube.com/watch?v=o8iyrtQyrZM';
 
   /// Official page to create/manage a Gemini API key.
-  static const String geminiApiKeyUrl =
-      'https://aistudio.google.com/apikey';
+  static const String geminiApiKeyUrl = 'https://aistudio.google.com/apikey';
 
   // ── Stockfish defaults ──────────────────────────────────────────
+  static const int defaultAnalysisTimeMs = 300; // ms (Balanced)
+  static const int quickAnalysisTimeMs = 100;
+  static const int balancedAnalysisTimeMs = 300;
+  static const int thoroughAnalysisTimeMs = 1000;
+  static const int minAnalysisTimeMs = 100;
+  static const int maxAnalysisTimeMs = 2000;
   static const int defaultEngineDepth = 10;
   static const int defaultMultiPV = 1;
+  static const int defaultHashMemory = 64; // MB
+  static const int defaultCpuThreads = 2;
+  static const List<int> hashOptions = [16, 32, 64, 128];
+  static const List<int> threadOptions = [1, 2, 4];
   static const bool defaultShowBestMoveArrow = true;
   static const bool defaultAutoAnalyze = true;
 
   // ── Move classification thresholds (in centipawns) ──────────────
   /// Evaluation-loss thresholds used to classify a move.
-  static const double blunderThreshold = 200;   // cp
-  static const double mistakeThreshold = 100;   // cp
+  static const double blunderThreshold = 200; // cp
+  static const double mistakeThreshold = 100; // cp
   static const double inaccuracyThreshold = 50; // cp
 
   // ── Gemini importance threshold ─────────────────────────────────

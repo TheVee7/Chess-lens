@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/theme/app_theme.dart';
 import '../../core/config/settings_manager.dart';
 import '../../core/game_controller.dart';
@@ -44,8 +45,11 @@ class _LoadingScreenState extends State<LoadingScreen> {
     _controller.addListener(_onUpdate);
 
     await _controller.startAnalysis(
+      analysisTimeMs: settings.analysisTimeMs,
       depth: settings.engineDepth,
       multiPv: settings.multiPv,
+      hash: settings.hashMemory,
+      threads: settings.cpuThreads,
     );
   }
 
@@ -94,7 +98,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
     final currentPly = am.currentPly;
     final totalPlies = am.totalPlies;
     final hasError = am.error != null;
-    final engineDepth = context.read<SettingsManager>().engineDepth;
+    final analysisTimeMs = context.read<SettingsManager>().analysisTimeMs;
 
     return PopScope(
       canPop: true,
@@ -141,7 +145,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
                       label: totalPlies > 0
                           ? 'Move $currentPly of $totalPlies'
                           : 'Preparing Stockfish...',
-                      sublabel: 'Stockfish depth $engineDepth',
+                      sublabel: 'Stockfish ${analysisTimeMs}ms/move',
                     ),
                   ] else ...[
                     // ── Error State Card ──────────────────────────────
@@ -149,8 +153,9 @@ class _LoadingScreenState extends State<LoadingScreen> {
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: AppTheme.blunder.withValues(alpha: 0.10),
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusCard),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusCard,
+                        ),
                         border: Border.all(
                           color: AppTheme.blunder.withValues(alpha: 0.30),
                           width: 1,

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
+
 import '../chess/position_manager.dart';
 import '../models/chess_game.dart';
 import '../models/move_analysis.dart';
@@ -15,8 +17,8 @@ class AnalysisManager extends ChangeNotifier {
   final PositionManager _positionManager;
 
   AnalysisManager({Engine? engine, PositionManager? positionManager})
-      : _engine = engine ?? StockfishController(),
-        _positionManager = positionManager ?? PositionManager();
+    : _engine = engine ?? StockfishController(),
+      _positionManager = positionManager ?? PositionManager();
 
   bool _analyzing = false;
   bool get isAnalyzing => _analyzing;
@@ -29,8 +31,7 @@ class AnalysisManager extends ChangeNotifier {
   int _totalPlies = 0;
   int get totalPlies => _totalPlies;
 
-  double get progress =>
-      _totalPlies > 0 ? _currentPly / _totalPlies : 0;
+  double get progress => _totalPlies > 0 ? _currentPly / _totalPlies : 0;
 
   GameAnalysis? _result;
   GameAnalysis? get result => _result;
@@ -38,11 +39,11 @@ class AnalysisManager extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  int _depth = AppConfig.defaultEngineDepth;
-  int _multiPv = AppConfig.defaultMultiPV;
-
-  set depth(int v) => _depth = v;
-  set multiPv(int v) => _multiPv = v;
+  int movetime = AppConfig.defaultAnalysisTimeMs;
+  int depth = AppConfig.defaultEngineDepth;
+  int multiPv = AppConfig.defaultMultiPV;
+  int hash = AppConfig.defaultHashMemory;
+  int threads = AppConfig.defaultCpuThreads;
 
   /// Analyze the full game. Notifies listeners with progress.
   Future<GameAnalysis?> analyzeGame(ChessGame game) async {
@@ -70,6 +71,10 @@ class AnalysisManager extends ChangeNotifier {
 
     try {
       await _engine.init();
+      if (_cancelled) return null;
+
+      // Apply performance options (Threads and Hash)
+      await _engine.setOptions(hash: hash, threads: threads);
       if (_cancelled) return null;
 
       // Send ucinewgame once per game to prepare engine hash
@@ -142,26 +147,28 @@ class AnalysisManager extends ChangeNotifier {
           }
         }
 
-        analyses.add(MoveAnalysis(
-          plyIndex: move.plyIndex,
-          moveNumber: move.moveNumber,
-          isWhite: isWhite,
-          san: move.san,
-          fenBefore: fenBefore,
-          fenAfter: fenAfter,
-          evalBefore: evalBefore,
-          evalAfter: evalAfter,
-          isMateBefore: isMateBefore,
-          isMateAfter: isMateAfter,
-          mateBefore: mateBefore,
-          mateAfter: mateAfter,
-          bestMoveSan: bestSan,
-          bestMoveUci: resultBefore.bestMove,
-          pv: pvSan,
-          evalLoss: evalLoss,
-          classification: classification,
-          engineTimedOut: resultBefore.partial || resultAfter.partial,
-        ));
+        analyses.add(
+          MoveAnalysis(
+            plyIndex: move.plyIndex,
+            moveNumber: move.moveNumber,
+            isWhite: isWhite,
+            san: move.san,
+            fenBefore: fenBefore,
+            fenAfter: fenAfter,
+            evalBefore: evalBefore,
+            evalAfter: evalAfter,
+            isMateBefore: isMateBefore,
+            isMateAfter: isMateAfter,
+            mateBefore: mateBefore,
+            mateAfter: mateAfter,
+            bestMoveSan: bestSan,
+            bestMoveUci: resultBefore.bestMove,
+            pv: pvSan,
+            evalLoss: evalLoss,
+            classification: classification,
+            engineTimedOut: resultBefore.partial || resultAfter.partial,
+          ),
+        );
 
         _currentPly = i + 1;
         notifyListeners();
@@ -200,26 +207,12 @@ class AnalysisManager extends ChangeNotifier {
     if (pm.isCheckmate) {
       return const AnalysisResult(
         bestMove: '',
-        lines: [
-          UciInfo(
-            depth: 0,
-            score: -10000,
-            mate: 0,
-            multiPv: 1,
-          ),
-        ],
+        lines: [UciInfo(depth: 0, score: -10000, mate: 0, multiPv: 1)],
       );
     } else {
       return const AnalysisResult(
         bestMove: '',
-        lines: [
-          UciInfo(
-            depth: 0,
-            score: 0,
-            mate: null,
-            multiPv: 1,
-          ),
-        ],
+        lines: [UciInfo(depth: 0, score: 0, mate: null, multiPv: 1)],
       );
     }
   }
@@ -233,8 +226,9 @@ class AnalysisManager extends ChangeNotifier {
     }
     return await _engine.analyze(
       fen: fen,
-      depth: _depth,
-      multiPv: _multiPv,
+      movetime: movetime,
+      depth: depth,
+      multiPv: multiPv,
     );
   }
 
@@ -334,7 +328,8 @@ class AnalysisManager extends ChangeNotifier {
   }
 
   Map<MoveClassification, int> _countClassifications(
-      Iterable<MoveAnalysis> moves) {
+    Iterable<MoveAnalysis> moves,
+  ) {
     final counts = <MoveClassification, int>{
       for (final c in MoveClassification.values) c: 0,
     };
