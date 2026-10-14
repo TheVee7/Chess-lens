@@ -7,6 +7,10 @@ class AppConfig {
 
   // ── Gemini ──────────────────────────────────────────────────────
   static const String geminiModel = 'gemini-3.8-flash';
+  static const List<String> fallbackModels = [
+    'gemini-3.8-flash',
+    'gemini-flash-latest',
+  ];
   static const String geminiBaseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models';
 

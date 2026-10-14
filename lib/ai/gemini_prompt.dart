@@ -56,6 +56,77 @@ Respond with ONLY this JSON (no markdown, no code fences):
 ''';
   }
 
+  /// Prompt for a batch of move explanations, optionally including a game review.
+  static String movesBatch(List<MoveAnalysis> batch,
+      {List<MoveAnalysis>? reviewMoves}) {
+    final movesJson = batch.map((m) {
+      final cleanSan = _sanitize(m.san);
+      final cleanBestMove = _sanitize(m.bestMoveSan ?? 'N/A');
+      final cleanFen = _sanitize(m.fenBefore);
+      final pvCapped = m.pv.take(5).map((p) => '"${_sanitize(p)}"').toList();
+
+      return '  {\n'
+          '    "ply_index": ${m.plyIndex},\n'
+          '    "move_number": ${m.moveNumber},\n'
+          '    "side": "${m.isWhite ? 'White' : 'Black'}",\n'
+          '    "played_move": "$cleanSan",\n'
+          '    "best_move": "$cleanBestMove",\n'
+          '    "classification": "${m.classification.name}",\n'
+          '    "evaluation_before": ${(m.evalBefore / 100).toStringAsFixed(2)},\n'
+          '    "evaluation_after": ${(m.evalAfter / 100).toStringAsFixed(2)},\n'
+          '    "evaluation_loss": ${(m.evalLoss / 100).toStringAsFixed(2)},\n'
+          '    "principal_variation": $pvCapped,\n'
+          '    "fen": "$cleanFen"\n'
+          '  }';
+    }).join(',\n');
+
+    final reviewSection = StringBuffer();
+    if (reviewMoves != null) {
+      reviewSection.writeln();
+      reviewSection.writeln('Also generate an overall game review based on these critical moments:');
+      if (reviewMoves.isEmpty) {
+        reviewSection.writeln('No major blunders or mistakes detected. Solid overall play.');
+      } else {
+        for (final m in reviewMoves) {
+          final cleanSan = _sanitize(m.san);
+          reviewSection.writeln(
+              '  ${m.moveNumber}${m.isWhite ? '.' : '...'} $cleanSan '
+              '(${m.classification.name}, loss: ${(m.evalLoss / 100).toStringAsFixed(1)})');
+        }
+      }
+      reviewSection.writeln();
+      reviewSection.writeln('Include a "review" key in the JSON with: "summary" (3-4 sentences) and "key_lessons" (exactly 3 items).');
+    }
+
+    final reviewSchema = reviewMoves != null
+        ? ',\n  "review": {\n    "summary": "<3-4 sentence overview>",\n    "key_lessons": ["<lesson 1>", "<lesson 2>", "<lesson 3>"]\n  }'
+        : '';
+
+    return '''
+Analyze the following chess moves based on Stockfish engine responses and return human-friendly explanations.
+Explain what happened in natural human words, suggest better alternatives, and respond strictly in predefined JSON.
+Return exactly one entry per input move, keyed by ply_index.
+
+Moves:
+[
+$movesJson
+]
+$reviewSection
+Respond with ONLY this predefined JSON (no markdown, no code fences):
+{
+  "moves": [
+    {
+      "ply_index": <int copied from input>,
+      "title": "<classification label, e.g. Blunder, Mistake, Inaccuracy, Good>",
+      "explanation": "<explain in plain human words why this move was problematic or good, 2-3 sentences>",
+      "better_move": "<human suggestion: what the better move accomplishes and why, 1-2 sentences>",
+      "lesson": "<one concrete takeaway lesson in human words, 1 sentence>"
+    }
+  ]$reviewSchema
+}
+''';
+  }
+
   /// Prompt for the overall game review.
   static String gameReview(List<MoveAnalysis> importantMoves) {
     final moveSummaries = importantMoves.isEmpty
