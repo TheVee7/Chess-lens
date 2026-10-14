@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+
 import '../models/chess_game.dart';
 import '../models/move_analysis.dart';
 import '../models/game_analysis.dart';
@@ -113,10 +115,19 @@ class GameController extends ChangeNotifier {
   }
 
   // ── Stockfish analysis ──────────────────────────────────────
-  Future<void> startAnalysis({int? depth, int? multiPv}) async {
+  Future<void> startAnalysis({
+    int? analysisTimeMs,
+    int? depth,
+    int? multiPv,
+    int? hash,
+    int? threads,
+  }) async {
     if (_game == null) return;
+    if (analysisTimeMs != null) analysisManager.movetime = analysisTimeMs;
     if (depth != null) analysisManager.depth = depth;
     if (multiPv != null) analysisManager.multiPv = multiPv;
+    if (hash != null) analysisManager.hash = hash;
+    if (threads != null) analysisManager.threads = threads;
 
     analysisManager.addListener(_onAnalysisUpdate);
     await analysisManager.analyzeGame(_game!);
@@ -130,7 +141,10 @@ class GameController extends ChangeNotifier {
   void generateOfflineExplanations() {
     if (analysis == null) return;
     for (final m in analysis!.criticalMoments) {
-      _explanations.putIfAbsent(m.plyIndex, () => RuleBasedExplainer.explain(m));
+      _explanations.putIfAbsent(
+        m.plyIndex,
+        () => RuleBasedExplainer.explain(m),
+      );
       _explanationStatus[m.plyIndex] = ExplanationStatus.done;
     }
     _gameReview ??= RuleBasedExplainer.review(analysis!.moves);

@@ -42,7 +42,9 @@ class StubFullGameController extends GameController {
 
   @override
   MoveAnalysis? get currentMoveAnalysis {
-    if (stubAnalysis == null || _stubPly < 0 || _stubPly >= stubAnalysis!.moves.length) {
+    if (stubAnalysis == null ||
+        _stubPly < 0 ||
+        _stubPly >= stubAnalysis!.moves.length) {
       return null;
     }
     return stubAnalysis!.moves[_stubPly];
@@ -130,8 +132,10 @@ GameAnalysis _createTestAnalysis() {
         moveNumber: 1,
         isWhite: false,
         san: 'e5',
-        fenBefore: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1',
-        fenAfter: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2',
+        fenBefore:
+            'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1',
+        fenAfter:
+            'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2',
         evalBefore: 25,
         evalAfter: 20,
         evalLoss: 5,
@@ -144,8 +148,10 @@ GameAnalysis _createTestAnalysis() {
         moveNumber: 2,
         isWhite: true,
         san: 'f4',
-        fenBefore: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2',
-        fenAfter: 'rnbqkbnr/pppp1ppp/8/4p3/4PP2/8/PPPP2PP/RNBQKBNR b KQkq f3 0 2',
+        fenBefore:
+            'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2',
+        fenAfter:
+            'rnbqkbnr/pppp1ppp/8/4p3/4PP2/8/PPPP2PP/RNBQKBNR b KQkq f3 0 2',
         evalBefore: 20,
         evalAfter: -160,
         evalLoss: 180,
@@ -160,13 +166,15 @@ GameAnalysis _createTestAnalysis() {
       MoveClassification.best: 1,
       MoveClassification.blunder: 1,
     },
-    blackClassifications: {
-      MoveClassification.good: 1,
-    },
+    blackClassifications: {MoveClassification.good: 1},
   );
 }
 
-Widget _wrapAnalysis(Widget screen, {required GameController controller, double textScale = 1.0}) {
+Widget _wrapAnalysis(
+  Widget screen, {
+  required GameController controller,
+  double textScale = 1.0,
+}) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider<ApiKeyManager>(create: (_) => ApiKeyManager()),
@@ -176,9 +184,7 @@ Widget _wrapAnalysis(Widget screen, {required GameController controller, double 
     child: MaterialApp(
       theme: AppTheme.darkTheme,
       home: MediaQuery(
-        data: MediaQueryData(
-          textScaler: TextScaler.linear(textScale),
-        ),
+        data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
         child: screen,
       ),
     ),
@@ -200,73 +206,93 @@ void main() {
 
     for (final size in testSizes) {
       for (final scale in testScales) {
-        testWidgets('AnalysisScreen renders cleanly at ${size.width}x${size.height} scale $scale',
-            (tester) async {
-          tester.view.physicalSize = size;
-          tester.view.devicePixelRatio = 1.0;
-          addTearDown(tester.view.resetPhysicalSize);
+        testWidgets(
+          'AnalysisScreen renders cleanly at ${size.width}x${size.height} scale $scale',
+          (tester) async {
+            tester.view.physicalSize = size;
+            tester.view.devicePixelRatio = 1.0;
+            addTearDown(tester.view.resetPhysicalSize);
 
-          final controller = StubFullGameController(
-            stubAnalysis: analysis,
-            initialPly: 2, // Blunder move
-            stubStatus: {2: ExplanationStatus.done},
-            stubExplanations: {
-              2: const MoveExplanation(
-                moveNumber: 2,
-                title: 'Blunder',
-                explanation: 'A premature King Gambit push that severely weakens White kingside diagonal.',
-                betterMove: '2. Nf3 develops knights and guards e5.',
-                lesson: 'Do not weaken the f-pawn when uncastled.',
+            final controller = StubFullGameController(
+              stubAnalysis: analysis,
+              initialPly: 2, // Blunder move
+              stubStatus: {2: ExplanationStatus.done},
+              stubExplanations: {
+                2: const MoveExplanation(
+                  moveNumber: 2,
+                  title: 'Blunder',
+                  explanation: 'A premature King Gambit push that severely weakens White kingside diagonal.',
+                  betterMove: '2. Nf3 develops knights and guards e5.',
+                  lesson: 'Do not weaken the f-pawn when uncastled.',
+                ),
+              },
+            );
+
+            await tester.pumpWidget(
+              _wrapAnalysis(
+                AnalysisScreen(game: game),
+                controller: controller,
+                textScale: scale,
               ),
-            },
-          );
+            );
+            await tester.pumpAndSettle();
 
-          await tester.pumpWidget(_wrapAnalysis(AnalysisScreen(game: game), controller: controller, textScale: scale));
-          await tester.pumpAndSettle();
-
-          expect(tester.takeException(), isNull);
-          expect(find.byType(CoachReviewWidget), findsOneWidget);
-          expect(find.byType(MoveStripWidget), findsOneWidget);
-          expect(find.byType(AnalysisControls), findsOneWidget);
-        });
+            expect(tester.takeException(), isNull);
+            expect(find.byType(CoachReviewWidget), findsOneWidget);
+            expect(find.byType(MoveStripWidget), findsOneWidget);
+            expect(find.byType(AnalysisControls), findsOneWidget);
+          },
+        );
       }
     }
 
-    testWidgets('Long coach explanation scrolls inside card without overflowing', (tester) async {
-      tester.view.physicalSize = const Size(360, 640);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+      'Long coach explanation scrolls inside card without overflowing',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 640);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      const longExplanation =
-          'This is an exceptionally detailed analysis explaining why 2. f4 is a serious tactical blunder. '
-          'Pushing the f-pawn opens the fragile e1-h4 diagonal directly to the White monarch. '
-          'Black can immediately respond with 2... exf4 3. Nf3 g5, cementing the pawn wedge, '
-          'or play the sharp Falkbeer Countergambit 2... d5 3. exd5 e4! with commanding initiative. '
-          'Grandmaster theory advises developing minor pieces before opening flanks.';
+        const longExplanation =
+            'This is an exceptionally detailed analysis explaining why 2. f4 is a serious tactical blunder. '
+            'Pushing the f-pawn opens the fragile e1-h4 diagonal directly to the White monarch. '
+            'Black can immediately respond with 2... exf4 3. Nf3 g5, cementing the pawn wedge, '
+            'or play the sharp Falkbeer Countergambit 2... d5 3. exd5 e4! with commanding initiative. '
+            'Grandmaster theory advises developing minor pieces before opening flanks.';
 
-      final controller = StubFullGameController(
-        stubAnalysis: analysis,
-        initialPly: 2,
-        stubStatus: {2: ExplanationStatus.done},
-        stubExplanations: {
-          2: const MoveExplanation(
-            moveNumber: 2,
-            title: 'Blunder',
-            explanation: longExplanation,
-            betterMove: '2. Nf3 secures e5 and enables rapid castling kingside.',
-            lesson: 'Flank pawn advances before piece development expose the king to devastating tactical shots.',
+        final controller = StubFullGameController(
+          stubAnalysis: analysis,
+          initialPly: 2,
+          stubStatus: {2: ExplanationStatus.done},
+          stubExplanations: {
+            2: const MoveExplanation(
+              moveNumber: 2,
+              title: 'Blunder',
+              explanation: longExplanation,
+              betterMove:
+                  '2. Nf3 secures e5 and enables rapid castling kingside.',
+              lesson: 'Flank pawn advances before piece development expose the king to devastating tactical shots.',
+            ),
+          },
+        );
+
+        await tester.pumpWidget(
+          _wrapAnalysis(
+            AnalysisScreen(game: game),
+            controller: controller,
+            textScale: 1.5,
           ),
-        },
-      );
+        );
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(_wrapAnalysis(AnalysisScreen(game: game), controller: controller, textScale: 1.5));
-      await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(SingleChildScrollView), findsWidgets);
+      },
+    );
 
-      expect(tester.takeException(), isNull);
-      expect(find.byType(SingleChildScrollView), findsWidgets);
-    });
-
-    testWidgets('Displays failed coach explanation with retry option cleanly', (tester) async {
+    testWidgets('Displays failed coach explanation with retry option cleanly', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(360, 640);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -278,82 +304,102 @@ void main() {
         stubErrors: {2: 'Rate limit exceeded. Please wait 60 seconds.'},
       );
 
-      await tester.pumpWidget(_wrapAnalysis(AnalysisScreen(game: game), controller: controller));
+      await tester.pumpWidget(
+        _wrapAnalysis(AnalysisScreen(game: game), controller: controller),
+      );
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Rate limit exceeded. Please wait 60 seconds.'), findsOneWidget);
+      expect(
+        find.text('Rate limit exceeded. Please wait 60 seconds.'),
+        findsOneWidget,
+      );
       expect(find.text('Retry Explanation'), findsOneWidget);
     });
 
-    testWidgets('Coach panel height remains completely stable when stepping between moves', (tester) async {
-      tester.view.physicalSize = const Size(360, 640);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+      'Coach panel height remains completely stable when stepping between moves',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 640);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      final controller = StubFullGameController(
-        stubAnalysis: analysis,
-        initialPly: 0, // Best move (non-critical, no explanation)
-        stubStatus: {2: ExplanationStatus.done},
-        stubExplanations: {
-          2: const MoveExplanation(
-            moveNumber: 2,
-            title: 'Blunder',
-            explanation: 'King Gambit blunder text here.',
-            betterMove: '2. Nf3',
-            lesson: 'Develop pieces',
-          ),
-        },
-      );
+        final controller = StubFullGameController(
+          stubAnalysis: analysis,
+          initialPly: 0, // Best move (non-critical, no explanation)
+          stubStatus: {2: ExplanationStatus.done},
+          stubExplanations: {
+            2: const MoveExplanation(
+              moveNumber: 2,
+              title: 'Blunder',
+              explanation: 'King Gambit blunder text here.',
+              betterMove: '2. Nf3',
+              lesson: 'Develop pieces',
+            ),
+          },
+        );
 
-      await tester.pumpWidget(_wrapAnalysis(AnalysisScreen(game: game), controller: controller));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrapAnalysis(AnalysisScreen(game: game), controller: controller),
+        );
+        await tester.pumpAndSettle();
 
-      final coachFinder = find.byType(CoachReviewWidget);
-      expect(coachFinder, findsOneWidget);
-      final heightNonCritical = tester.getSize(coachFinder).height;
+        final coachFinder = find.byType(CoachReviewWidget);
+        expect(coachFinder, findsOneWidget);
+        final heightNonCritical = tester.getSize(coachFinder).height;
 
-      // Jump to ply 2 (critical blunder move with AI text)
-      controller.goToMove(2);
-      await tester.pumpAndSettle();
+        // Jump to ply 2 (critical blunder move with AI text)
+        controller.goToMove(2);
+        await tester.pumpAndSettle();
 
-      final heightCritical = tester.getSize(coachFinder).height;
+        final heightCritical = tester.getSize(coachFinder).height;
 
-      // Assert height did not change AT ALL!
-      expect(heightCritical, equals(heightNonCritical));
+        // Assert height did not change AT ALL!
+        expect(heightCritical, equals(heightNonCritical));
 
-      // Jump to start position (ply -1)
-      controller.goToMove(-1);
-      await tester.pumpAndSettle();
+        // Jump to start position (ply -1)
+        controller.goToMove(-1);
+        await tester.pumpAndSettle();
 
-      final heightStart = tester.getSize(coachFinder).height;
-      expect(heightStart, equals(heightNonCritical));
-    });
+        final heightStart = tester.getSize(coachFinder).height;
+        expect(heightStart, equals(heightNonCritical));
+      },
+    );
 
-    testWidgets('Opens Details bottom sheet containing EnginePanel and MoveList', (tester) async {
-      tester.view.physicalSize = const Size(360, 640);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+      'Opens Details bottom sheet containing EnginePanel and MoveList',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 640);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      final controller = StubFullGameController(
-        stubAnalysis: analysis,
-        initialPly: 1,
-      );
+        final controller = StubFullGameController(
+          stubAnalysis: analysis,
+          initialPly: 1,
+        );
 
-      await tester.pumpWidget(_wrapAnalysis(AnalysisScreen(game: game), controller: controller));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _wrapAnalysis(AnalysisScreen(game: game), controller: controller),
+        );
+        await tester.pumpAndSettle();
 
-      // Tap Details button in controls
-      final detailsButton = find.byIcon(Icons.tune_rounded);
-      expect(detailsButton, findsOneWidget);
-      await tester.tap(detailsButton);
-      await tester.pumpAndSettle();
+        // Tap Details button in controls
+        final detailsButton = find.byIcon(Icons.tune_rounded);
+        expect(detailsButton, findsOneWidget);
+        await tester.tap(detailsButton);
+        await tester.pumpAndSettle();
 
-      // Bottom sheet is now open
-      expect(find.text('Engine & Move Details'), findsOneWidget);
-      expect(find.text('ENGINE'), findsOneWidget);
-      expect(find.text('EVALUATION'), findsOneWidget);
-      expect(find.text('MOVES'), findsOneWidget);
-    });
+        // Bottom sheet is now open
+        expect(find.text('Engine & Move Details'), findsOneWidget);
+        expect(find.text('ENGINE'), findsOneWidget);
+        expect(find.text('EVALUATION'), findsOneWidget);
+        await tester.scrollUntilVisible(
+          find.text('MOVES'),
+          100,
+          scrollable: find.byType(Scrollable).last,
+        );
+        expect(find.text('MOVES'), findsOneWidget);
+      },
+    );
   });
 }
